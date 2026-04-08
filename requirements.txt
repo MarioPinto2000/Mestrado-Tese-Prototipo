@@ -1,0 +1,14 @@
+# Dependências principais
+opencv-python==4.8.1.78
+mediapipe==0.10.11
+numpy==1.24.3
+
+# Controlo do PowerPoint
+pyautogui==0.9.53  # Windows
+
+# Reconhecimento de voz (opcional - implementação futura)
+# SpeechRecognition==3.10.0
+# pyaudio==0.2.13
+
+# Utilitários
+python-dotenv==1.0.0
