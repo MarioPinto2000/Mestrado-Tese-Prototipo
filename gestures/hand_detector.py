@@ -30,15 +30,16 @@ class HandDetector:
             min_tracking_confidence=min_tracking_confidence
         )
     
-    def detect_hands(self, image: np.ndarray) -> Tuple[np.ndarray, List[List[HandLandmark]], List[float]]:
+    def detect_hands(self, image: np.ndarray) -> Tuple[np.ndarray, List[List[HandLandmark]], List[float], List[str]]:
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image_rgb.flags.writeable = False
         results = self.hands.process(image_rgb)
         image_rgb.flags.writeable = True
-        
+    
         hands_landmarks = []
         confidences = []
-        
+        labels = []  # Nova lista para guardar "Left" ou "Right"
+    
         if results.multi_hand_landmarks and results.multi_handedness:
             for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
                 landmarks = []
@@ -46,12 +47,13 @@ class HandDetector:
                     landmarks.append(HandLandmark(
                         x=landmark.x, y=landmark.y, z=landmark.z, index=idx
                     ))
-                
+            
                 hands_landmarks.append(landmarks)
-                # CORREÇÃO: Acessando o score corretamente para versões recentes do MediaPipe
                 confidences.append(handedness.classification[0].score)
-        
-        return image, hands_landmarks, confidences
+                # Extrair o label ("Left" ou "Right")
+                labels.append(handedness.classification[0].label)
+    
+        return image, hands_landmarks, confidences, labels # Agora retorna 4 valores
 
     def draw_hand_landmarks(self, image: np.ndarray, hand_landmarks_list: List[List[HandLandmark]]) -> np.ndarray:
         h, w, _ = image.shape
