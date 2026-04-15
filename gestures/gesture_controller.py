@@ -6,12 +6,12 @@ class GestureController:
     def __init__(self):
         self.command_mode_active = False
         self.zoom_mode_active = False
-        self.laser_active = False  # Estado do apontador
+        self.laser_active = False 
         
         self.last_command_time = 0
         self.cooldown = 3.0
         
-        # Âncoras para os movimentos de deslize (Slide)
+        # Âncoras para os movimentos do slide
         self.index_anchor_x = None
         self.pinky_anchor_x = None
         self.swipe_threshold = 0.12 
@@ -70,7 +70,7 @@ class GestureController:
                 dedos_principais = [fingers['index'], fingers['middle'], fingers['ring'], fingers['pinky']]
                 total_sem_polegar = sum(dedos_principais)
                 
-                # --- MODO NAVEGAÇÃO (SLIDE) ---
+                # --- MODO NAVEGAÇÃO ---
                 if self.command_mode_active:
                     if total_sem_polegar == 1:
                         if fingers['index']:
