@@ -6,13 +6,17 @@ class GestureController:
     def __init__(self):
         self.command_mode_active = False
         self.zoom_mode_active = False
-        self.last_command_time = 0
-        self.cooldown = 3.0 
+        self.laser_active = False  # Estado do apontador
         
+        self.last_command_time = 0
+        self.cooldown = 3.0
+        
+        # Âncoras para os movimentos de deslize (Slide)
         self.index_anchor_x = None
         self.pinky_anchor_x = None
         self.swipe_threshold = 0.12 
         
+        # Memória para movimento do zoom
         self.prev_right_hand_open = False 
         self.prev_right_hand_closed = False
 
@@ -44,9 +48,12 @@ class GestureController:
                 elif ind and med and outros_fechados:
                     self.zoom_mode_active = True
         
+        # Limpeza de memória ao sair dos modos
         if not self.command_mode_active:
             self.index_anchor_x = None
             self.pinky_anchor_x = None
+        if not self.zoom_mode_active:
+            self.laser_active = False
                 
         return self.command_mode_active or self.zoom_mode_active
 
@@ -59,61 +66,60 @@ class GestureController:
                 hand = hands_landmarks[i]
                 fingers = analyzer.count_extended_fingers(hand)
                 
-                # --- NOVA LÓGICA: IGNORAR POLEGAR ---
-                # causa conflitos
+                # Ignorar polegar na contagem principal para evitar conflitos
                 dedos_principais = [fingers['index'], fingers['middle'], fingers['ring'], fingers['pinky']]
                 total_sem_polegar = sum(dedos_principais)
                 
                 # --- MODO NAVEGAÇÃO (SLIDE) ---
                 if self.command_mode_active:
-                    
                     if total_sem_polegar == 1:
-                        # 1. APENAS INDICADOR
                         if fingers['index']:
                             self.pinky_anchor_x = None
                             current_x = hand[8].x 
-                            if self.index_anchor_x is None:
-                                self.index_anchor_x = current_x
-                                return "INDICADOR PRONTO"
-
+                            if self.index_anchor_x is None: self.index_anchor_x = current_x
+                            
                             displacement = current_x - self.index_anchor_x
                             if abs(displacement) > self.swipe_threshold:
                                 if self._can_execute():
                                     pyautogui.press('right')
                                     self.index_anchor_x = current_x
                                     return "SWIPE: Próximo >>"
-                            return "Movendo Indicador..."
+                            return "Modo Slide: Indicador"
 
-                        # 2. APENAS MINDINHO
                         elif fingers['pinky']:
                             self.index_anchor_x = None
                             current_x = hand[20].x 
-                            if self.pinky_anchor_x is None:
-                                self.pinky_anchor_x = current_x
-                                return "MINDINHO PRONTO"
-
+                            if self.pinky_anchor_x is None: self.pinky_anchor_x = current_x
+                            
                             displacement = current_x - self.pinky_anchor_x
                             if abs(displacement) > self.swipe_threshold:
                                 if self._can_execute():
                                     pyautogui.press('left')
                                     self.pinky_anchor_x = current_x
                                     return "SWIPE: Anterior <<"
-                            return "Movendo Mindinho..."
+                            return "Modo Slide: Mindinho"
                     
                     self.index_anchor_x = None
                     self.pinky_anchor_x = None
-                    return "Use apenas Indicador ou Mindinho"
+                    return "Use Indicador ou Mindinho"
 
-                # --- MODO ZOOM ---
+                # --- MODO ZOOM / POINTER ---
                 elif self.zoom_mode_active:
-                    
+                    # 1. GESTO LASER (Indicador + Médio)
+                    if fingers['index'] and fingers['middle'] and total_sem_polegar == 2:
+                        self.laser_active = True
+                        return "APONTADOR ATIVO"
+                    else:
+                        self.laser_active = False
+
+                    # 2. RESET ZOOM (Gesto OK)
                     dist_ok = analyzer.calculate_distance((hand[4].x, hand[4].y), (hand[8].x, hand[8].y))
                     if dist_ok < 0.10 and fingers['middle'] and fingers['pinky']:
                         if self._can_execute():
                             pyautogui.hotkey('ctrl', 'alt', '0')
                             return "RESET ZOOM"
 
-                    
+                    # 3. ZOOM IN/OUT (Mão Aberta/Fechada)
                     abertos_total = sum(fingers.values())
                     mão_aberta, mão_fechada = abertos_total >= 4, abertos_total <= 1
                     
@@ -128,8 +134,8 @@ class GestureController:
                             self.prev_right_hand_open = False 
                             return "Zoom Out"
 
-                self.prev_right_hand_open = (sum(fingers.values()) >= 4)
-                self.prev_right_hand_closed = (sum(fingers.values()) <= 1)
-                return "Modo Ativo"
+                    self.prev_right_hand_open = (abertos_total >= 4)
+                    self.prev_right_hand_closed = (abertos_total <= 1)
+                    return "Modo Zoom"
     
         return "Mão Direita não detectada"
