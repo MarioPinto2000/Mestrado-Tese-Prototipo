@@ -7,6 +7,7 @@ class GestureController:
         self.command_mode_active = False
         self.zoom_mode_active = False
         self.laser_active = False 
+        self.voice_mode_active = False
         
         self.last_command_time = 0
         self.cooldown = 3.0
@@ -36,17 +37,23 @@ class GestureController:
     def update_state(self, labels: List[str], hands_landmarks: List[List], analyzer) -> bool:
         self.command_mode_active = False 
         self.zoom_mode_active = False
+        self.voice_mode_active = False
         
         for i, label in enumerate(labels):
             if label == "Left":
                 fingers = analyzer.count_extended_fingers(hands_landmarks[i])
-                ind, med = fingers['index'], fingers['middle']
-                outros_fechados = not fingers['ring'] and not fingers['pinky']
+                ind, med, ring = fingers['index'], fingers['middle'], fingers['ring']
+                pinky = fingers['pinky']
 
-                if ind and not med and outros_fechados:
+                # Gesto: Apenas Indicador
+                if ind and not med and not ring and not pinky:
                     self.command_mode_active = True
-                elif ind and med and outros_fechados:
+                # Gesto: Indicador e Médio
+                elif ind and med and not ring and not pinky:
                     self.zoom_mode_active = True
+                # NOVO GESTO: Indicador, Médio e Anelar
+                elif ind and med and ring and not pinky:
+                    self.voice_mode_active = True
         
         # Limpeza de memória ao sair dos modos
         if not self.command_mode_active:
@@ -55,7 +62,7 @@ class GestureController:
         if not self.zoom_mode_active:
             self.laser_active = False
                 
-        return self.command_mode_active or self.zoom_mode_active
+        return self.command_mode_active or self.zoom_mode_active or self.voice_mode_active
 
     def get_right_hand_command(self, labels: List[str], hands_landmarks: List[List], analyzer) -> str:
         if not self.command_mode_active and not self.zoom_mode_active:
