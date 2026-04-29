@@ -7,10 +7,20 @@ class GestureController:
         self.command_mode_active = False
         self.zoom_mode_active = False
         self.laser_active = False 
+        self.multimedia_active = False
         self.voice_mode_active = False
         
         self.last_command_time = 0
         self.cooldown = 3.0
+        
+        self.last_volume_time = 0
+        self.volume_cooldown = 0.05
+        
+         #volume 
+        self.volume_anchor_y = None   
+        self.volume_threshold = 0.001  
+        self.volume_cooldown = 0.01   
+        self.last_volume_time = 0
         
         # Âncoras para os movimentos do slide
         self.index_anchor_x = None
@@ -33,11 +43,19 @@ class GestureController:
             self.last_command_time = time.time()
             return True
         return False
+    
+    def _can_execute_volume(self) -> bool:
+        current_time = time.time()
+        if (current_time - self.last_volume_time) > self.volume_cooldown:
+            self.last_volume_time = current_time
+            return True
+        return False
 
     def update_state(self, labels: List[str], hands_landmarks: List[List], analyzer) -> bool:
         self.command_mode_active = False 
         self.zoom_mode_active = False
         self.voice_mode_active = False
+        self.multimedia_active = False
         
         for i, label in enumerate(labels):
             if label == "Left":
@@ -45,14 +63,16 @@ class GestureController:
                 ind, med, ring = fingers['index'], fingers['middle'], fingers['ring']
                 pinky = fingers['pinky']
 
-                # Gesto: Apenas Indicador
+                # 1 dedo: Apenas Indicador
                 if ind and not med and not ring and not pinky:
                     self.command_mode_active = True
-                # Gesto: Indicador e Médio
+                # 2 dedos: Indicador e Médio
                 elif ind and med and not ring and not pinky:
                     self.zoom_mode_active = True
-                # NOVO GESTO: Indicador, Médio e Anelar
                 elif ind and med and ring and not pinky:
+                    self.multimedia_active = True
+                # Modo voz indicador e mindinho
+                elif ind and pinky and not med and not ring:
                     self.voice_mode_active = True
         
         # Limpeza de memória ao sair dos modos
@@ -61,11 +81,13 @@ class GestureController:
             self.pinky_anchor_x = None
         if not self.zoom_mode_active:
             self.laser_active = False
+        if not self.multimedia_active:
+            self.volume_anchor_y = None
                 
-        return self.command_mode_active or self.zoom_mode_active or self.voice_mode_active
+        return self.command_mode_active or self.zoom_mode_active or self.multimedia_active or self.voice_mode_active
 
     def get_right_hand_command(self, labels: List[str], hands_landmarks: List[List], analyzer) -> str:
-        if not self.command_mode_active and not self.zoom_mode_active:
+        if not self.command_mode_active and not self.zoom_mode_active and not self.multimedia_active:
             return "Aguardando Ativador (Mao Esq.)"
 
         for i, label in enumerate(labels):
@@ -144,5 +166,42 @@ class GestureController:
                     self.prev_right_hand_open = (abertos_total >= 4)
                     self.prev_right_hand_closed = (abertos_total <= 1)
                     return "Modo Zoom"
+                
+                elif self.multimedia_active:
+                    # 1. GESTO DE MUTE (4 dedos levantados: ind, med, ring, pinky)
+                    # Ignoramos o polegar (pode estar aberto ou fechado)
+                    if fingers['index'] and not fingers['pinky'] and fingers['middle'] and fingers['ring']:
+                        if self._can_execute(): # Cooldown de 3s para evitar repetições rápidas
+                            pyautogui.press('volumemute')
+                            return "AUDIO: MUTE/UNMUTE"
+
+                    # 2. GESTO DE VOLUME (Apenas indicador levantado)
+                    elif fingers['index'] and not fingers['middle'] and not fingers['ring'] and not fingers['pinky']:
+                        current_y = hand[8].y 
+                        
+                        if self.volume_anchor_y is None:
+                            self.volume_anchor_y = current_y
+                            return "Volume Pronto"
+
+                        displacement = self.volume_anchor_y - current_y 
+
+                        # Se o movimento for maior que o threshold mínimo
+                        if abs(displacement) > self.volume_threshold:
+                            if self._can_execute_volume():
+                                if displacement > 0:
+                                    pyautogui.press('volumeup')
+                                    status = "Aumentando Volume ↑"
+                                else:
+                                    pyautogui.press('volumedown')
+                                    status = "Baixando Volume ↓"
+                                
+                                # ATUALIZAÇÃO CRÍTICA: A âncora segue o dedo para ser progressivo
+                                self.volume_anchor_y = current_y
+                                return status
+                        
+                        return "Controlando Volume..."
+                    
+                    self.volume_anchor_y = None
+                    return "Modo Multimédia"
     
         return "Mão Direita não detectada"
