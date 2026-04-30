@@ -16,10 +16,10 @@ class GestureController:
         self.last_volume_time = 0
         self.volume_cooldown = 0.05
         
-         #volume 
+        #volume 
         self.volume_anchor_y = None   
         self.volume_threshold = 0.001  
-        self.volume_cooldown = 0.01   
+        self.volume_cooldown = 0.001   
         self.last_volume_time = 0
         
         # Âncoras para os movimentos do slide
@@ -167,15 +167,41 @@ class GestureController:
                     self.prev_right_hand_closed = (abertos_total <= 1)
                     return "Modo Zoom"
                 
+                # --- MODO MULTIMÉDIA ---
                 elif self.multimedia_active:
-                    # 1. GESTO DE MUTE (4 dedos levantados: ind, med, ring, pinky)
-                    # Ignoramos o polegar (pode estar aberto ou fechado)
-                    if fingers['index'] and not fingers['pinky'] and fingers['middle'] and fingers['ring']:
-                        if self._can_execute(): # Cooldown de 3s para evitar repetições rápidas
+                    dist_ok = analyzer.calculate_distance((hand[4].x, hand[4].y), (hand[8].x, hand[8].y))
+                    
+                    # 1. GESTO DE PAUSA/PLAY (Gesto OK)
+                    if dist_ok < 0.05 and fingers['middle'] and fingers['ring'] and fingers['pinky']:
+                        if self._can_execute(): 
+                            sw, sh = pyautogui.size()
+                            center_x, center_y = sw // 2, sh // 2
+                            
+                            # ACORDAR A INTERFACE:
+                            # 1. Move para longe para garantir que o Windows deteta movimento
+                            pyautogui.moveTo(center_x - 150, center_y + 150, duration=0.2)
+                            time.sleep(0.1) 
+                            
+                            # 2. Move para o centro para focar o vídeo
+                            pyautogui.moveTo(center_x, center_y, duration=0.2)
+                            time.sleep(0.1)
+                            
+                            # 3. Executa os comandos
+                            pyautogui.click() 
+                            
+                            # 4. LIMPEZA: Move o rato para o canto inferior direito (fora da vista)
+                            time.sleep(0.2)
+                            pyautogui.moveTo(sw - 5, sh - 5, duration=0.1)
+                            
+                            return "PLAY / PAUSE"
+
+                    # 2. GESTO DE MUTE (Indicador, Médio e Anelar levantados)
+                    elif fingers['index'] and fingers['middle'] and fingers['ring'] and not fingers['pinky']:
+                        if self._can_execute(): 
                             pyautogui.press('volumemute')
                             return "AUDIO: MUTE/UNMUTE"
 
-                    # 2. GESTO DE VOLUME (Apenas indicador levantado)
+                    # 3. GESTO DE VOLUME PROGRESSIVO (Apenas indicador levantado)[cite: 3]
                     elif fingers['index'] and not fingers['middle'] and not fingers['ring'] and not fingers['pinky']:
                         current_y = hand[8].y 
                         
@@ -185,21 +211,17 @@ class GestureController:
 
                         displacement = self.volume_anchor_y - current_y 
 
-                        # Se o movimento for maior que o threshold mínimo
                         if abs(displacement) > self.volume_threshold:
                             if self._can_execute_volume():
                                 if displacement > 0:
                                     pyautogui.press('volumeup')
-                                    status = "Aumentando Volume ↑"
                                 else:
                                     pyautogui.press('volumedown')
-                                    status = "Baixando Volume ↓"
                                 
-                                # ATUALIZAÇÃO CRÍTICA: A âncora segue o dedo para ser progressivo
                                 self.volume_anchor_y = current_y
-                                return status
+                                return "Ajustando Volume"
                         
-                        return "Controlando Volume..."
+                        return "Modo Volume"
                     
                     self.volume_anchor_y = None
                     return "Modo Multimédia"
