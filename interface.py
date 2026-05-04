@@ -1,121 +1,129 @@
 import tkinter as tk
-from tkinter import messagebox, scrolledtext
+from tkinter import scrolledtext
 import threading
-from main import main 
+from main import main
 
 class AppUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Controlo PowerPoint Gestual v1.0 - Sistema Multimodal")
-        self.root.geometry("600x500")
+        self.root.title("Controlo Gestual PowerPoint v1.0")
+
+        width, height = 400, 250
+        self.center_window(self.root, width, height)
+        
         self.root.configure(bg="#1e1e2e")
 
-        # Título Principal
-        self.title_label = tk.Label(
-            root, 
-            text="CONTROLO DE APRESENTAÇÃO AI", 
-            font=("Segoe UI", 18, "bold"),
+        tk.Label(
+            root,
+            text="MENU PRINCIPAL",
+            font=("Segoe UI", 16, "bold"),
             bg="#1e1e2e",
             fg="#89b4fa"
-        )
-        self.title_label.pack(pady=20)
+        ).pack(pady=20)
 
-        # Frame para os Botões
-        button_frame = tk.Frame(root, bg="#1e1e2e")
-        button_frame.pack(pady=10)
+        self.btn_manual = tk.Button(
+            root,
+            text="MANUAL DE GESTOS",
+            command=self.open_manual,
+            width=25,
+            height=2,
+            bg="#fab387",
+            font=("Segoe UI", 10, "bold"),
+            relief="flat",
+            cursor="hand2"
+        )
+        self.btn_manual.pack(pady=10)
 
         self.btn_start = tk.Button(
-            button_frame, 
-            text="▶ INICIAR SISTEMA", 
+            root,
+            text="INICIAR SISTEMA",
             command=self.run_main,
-            width=18,
+            width=25,
             height=2,
             bg="#a6e3a1",
-            fg="#11111b",
             font=("Segoe UI", 10, "bold"),
-            relief="flat"
+            relief="flat",
+            cursor="hand2"
         )
-        self.btn_start.pack(side=tk.LEFT, padx=10)
+        self.btn_start.pack(pady=10)
 
-        self.btn_exit = tk.Button(
-            button_frame, 
-            text="✕ SAIR", 
-            command=root.quit,
-            width=10,
-            height=2,
-            bg="#f38ba8",
-            fg="#11111b",
-            font=("Segoe UI", 10, "bold"),
-            relief="flat"
-        )
-        self.btn_exit.pack(side=tk.LEFT, padx=10)
+    def center_window(self, win, w, h):
+        screen_width = win.winfo_screenwidth()
+        screen_height = win.winfo_screenheight()
+        
+        x = (screen_width // 2) - (w // 2)
+        y = (screen_height // 2) - (h // 2)
+        
+        win.geometry(f'{w}x{h}+{x}+{y}')
 
-        # Área de Instruções (ScrolledText para melhor organização)
-        self.instr_area = scrolledtext.ScrolledText(
-            root, 
-            width=70, 
-            height=15, 
-            font=("Consolas", 10),
-            bg="#313244",
+    def open_manual(self):
+        manual_win = tk.Toplevel(self.root)
+        manual_win.title("Manual de Gestos")
+        
+        # Centrar a janela do manual
+        self.center_window(manual_win, 650, 700)
+        
+        manual_win.configure(bg="#1e1e2e")
+
+        txt = scrolledtext.ScrolledText(
+            manual_win,
+            bg="#1e1e2e",
             fg="#cdd6f4",
-            padx=10,
-            pady=10,
-            relief="flat"
+            font=("Segoe UI", 11),
+            padx=25,
+            pady=25,
+            insertbackground="white",
+            bd=0,
+            wrap=tk.WORD
         )
-        self.instr_area.pack(pady=20, padx=20)
-        self.insert_instructions()
-        self.instr_area.configure(state=tk.DISABLED) # Apenas leitura
+        txt.pack(fill=tk.BOTH, expand=True)
 
-    def insert_instructions(self):
-        instr_text = """
-============================================================
-        MANUAL DE GESTOS E COMANDOS
-============================================================
+        # Estilos
+        txt.tag_configure("titulo", font=("Segoe UI", 18, "bold"), foreground="#89b4fa", justify="center")
+        txt.tag_configure("seccao", font=("Segoe UI", 14, "bold"), foreground="#a6e3a1")
+        txt.tag_configure("gesto", font=("Segoe UI", 11, "bold"), foreground="#fab387")
+        txt.tag_configure("normal", font=("Segoe UI", 11))
 
-1. MÃO ESQUERDA: SELEÇÃO DE MODOS (Ativador)
-------------------------------------------------------------
-• INDICADOR           -> Modo Navegação (Slides)
-• INDICADOR + MÉDIO   -> Modo Zoom / Laser
-• IND + MÉD + ANELAR  -> Modo Multimédia
-• IND + MINDINHO      -> Modo Voz (Gesto Rock)
+        def adicionar_item(nome, desc):
+            txt.insert(tk.INSERT, f"{nome}\n", "gesto")
+            txt.insert(tk.INSERT, f"{desc}\n\n", "normal")
 
-2. MÃO DIREITA: AÇÕES (Comandos)
-------------------------------------------------------------
-[MODO NAVEGAÇÃO]
-• SWIPE INDICADOR (D) -> Próximo Slide
-• SWIPE MINDINHO (E)  -> Slide Anterior
+        txt.insert(tk.INSERT, "MANUAL DE GESTOS\n\n", "titulo")
 
-[MODO ZOOM / LASER]
-• INDICADOR + MÉDIO   -> Mover Apontador Laser
-• ABRIR MÃO           -> Zoom In (+)
-• FECHAR MÃO          -> Zoom Out (-)
-• GESTO OK            -> Reset Zoom (100%)
+        txt.insert(tk.INSERT, "INTRODUÇÃO\n\n", "seccao")
+        txt.insert(
+            tk.INSERT,
+            "O sistema funciona através da deteção de gestos com ambas as mãos.\n"
+            "A mão esquerda é utilizada para selecionar o modo de funcionamento, "
+            "definindo o tipo de comando que o utilizador pretende executar.\n\n"
+            "Após a seleção do modo, a mão direita é responsável por realizar o gesto "
+            "específico que executa a ação correspondente.\n\n"
+            "Os comandos devem ser realizados com as duas mãos em simultâneo, "
+            "garantindo assim uma deteção correta e evitando ativações indesejadas.\n\n"
+            "DICA: Aguarde cerca de 3 segundos entre gestos para evitar múltiplos comandos.\n\n"
+            "NOTA: Para fechar o Comando gestual pressione 'q' no teclado\n\n",
+            "normal"
+        )
 
-[MODO MULTIMÉDIA]
-• GESTO OK            -> Play / Pausa (Clique no Centro)
-• IND + MÉD + ANELAR  -> Mute / Unmute Áudio
-• APENAS INDICADOR    -> Volume (Mover p/ Cima ou Baixo)
+        txt.insert(tk.INSERT, "MÃO ESQUERDA → SELEÇÃO DE MODOS\n\n", "seccao")
+        adicionar_item("• MODO NAVEGAÇÃO", "Estique apenas o dedo indicador.")
+        adicionar_item("• MODO ZOOM / LASER", "Estique o indicador e o dedo médio.")
+        adicionar_item("• MODO MULTIMÉDIA", "Estique indicador, médio e anelar.")
+        adicionar_item("• MODO VOZ", "Estique o indicador e o mindinho (gesto rock).")
 
-[MODO VOZ]
-• Diga "Go to Slide [número]"    -> Salta para o slide específico
-------------------------------------------------------------
-Dica: Aguarde o cooldown de 3s entre cliques.
-"""
-        self.instr_area.insert(tk.INSERT, instr_text)
+        txt.insert(tk.INSERT, "\nMÃO DIREITA → AÇÕES\n\n", "seccao")
+        adicionar_item("• NAVEGAÇÃO", "Swipe com:\n- Indicador → Próximo\n- Mindinho → Anterior")
+        adicionar_item("• ZOOM", "Mão fechada abra a mão → Zoom +\nAberta feche a mão → Zoom -\nGesto OK → Reset")
+        adicionar_item("• MULTIMÉDIA", "Gesto OK → Play / Pause\nIndicador para cima → Vol +\nIndicador para baixo → Vol -")
+
+        txt.insert(tk.INSERT, "\nVOZ\n\n", "seccao")
+        txt.insert(tk.INSERT, "Diga: 'Go to slide [número]' → Navegação para slide especifico\n\n", "normal")
+
+        txt.configure(state=tk.DISABLED)
 
     def run_main(self):
-        """Executa a lógica principal em Thread para não travar a UI[cite: 1]"""
         self.btn_start.config(state=tk.DISABLED, text="SISTEMA ATIVO")
-        thread = threading.Thread(target=self.start_backend, daemon=True)
-        thread.start()
-
-    def start_backend(self):
-        try:
-            main() 
-        except Exception as e:
-            messagebox.showerror("Erro Crítico", f"Erro ao iniciar backend: {e}")
-        finally:
-            self.root.after(0, lambda: self.btn_start.config(state=tk.NORMAL, text="▶ INICIAR SISTEMA"))
+        threading.Thread(target=main, daemon=True).start()
 
 if __name__ == "__main__":
     root = tk.Tk()
