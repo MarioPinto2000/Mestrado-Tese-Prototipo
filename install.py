@@ -40,7 +40,8 @@ class Installer:
             'mediapipe': 'mediapipe',
             'SpeechRecognition': 'speech_recognition',
             'pyaudio': 'pyaudio',
-            'word2number': 'word2number'
+            'word2number': 'word2number',
+            'Pillow': 'PIL'
         }
         
         all_ok = True

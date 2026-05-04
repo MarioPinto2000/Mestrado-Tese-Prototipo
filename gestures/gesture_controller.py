@@ -85,6 +85,23 @@ class GestureController:
             self.volume_anchor_y = None
                 
         return self.command_mode_active or self.zoom_mode_active or self.multimedia_active or self.voice_mode_active
+    
+    def _execute_multimedia_action(self, sw, sh, center_x, center_y):
+        """Executa a sequência de movimentos e clique sem bloquear a câmara."""
+        # 1. Move para longe para garantir detecção de movimento[cite: 5]
+        pyautogui.moveTo(center_x - 150, center_y + 150, duration=0.2)
+        time.sleep(0.1) 
+        
+        # 2. Move para o centro para focar o vídeo[cite: 5]
+        pyautogui.moveTo(center_x, center_y, duration=0.2)
+        time.sleep(0.1)
+        
+        # 3. Executa o clique[cite: 5]
+        pyautogui.click() 
+        
+        # 4. LIMPEZA: Move para o canto inferior direito[cite: 5]
+        time.sleep(0.2)
+        pyautogui.moveTo(sw - 5, sh - 5, duration=0.1)
 
     def get_right_hand_command(self, labels: List[str], hands_landmarks: List[List], analyzer) -> str:
         if not self.command_mode_active and not self.zoom_mode_active and not self.multimedia_active:
@@ -177,23 +194,17 @@ class GestureController:
                             sw, sh = pyautogui.size()
                             center_x, center_y = sw // 2, sh // 2
                             
-                            # ACORDAR A INTERFACE:
-                            # 1. Move para longe para garantir que o Windows deteta movimento
-                            pyautogui.moveTo(center_x - 150, center_y + 150, duration=0.2)
-                            time.sleep(0.1) 
+                            # DISPARA A AÇÃO EM THREAD SEPARADA:
+                            # Isto impede que a câmara congele durante os delays
+                            import threading
+                            action_thread = threading.Thread(
+                                target=self._execute_multimedia_action, 
+                                args=(sw, sh, center_x, center_y),
+                                daemon=True
+                            )
+                            action_thread.start()
                             
-                            # 2. Move para o centro para focar o vídeo
-                            pyautogui.moveTo(center_x, center_y, duration=0.2)
-                            time.sleep(0.1)
-                            
-                            # 3. Executa os comandos
-                            pyautogui.click() 
-                            
-                            # 4. LIMPEZA: Move o rato para o canto inferior direito (fora da vista)
-                            time.sleep(0.2)
-                            pyautogui.moveTo(sw - 5, sh - 5, duration=0.1)
-                            
-                            return "PLAY / PAUSE"
+                            return "A EXECUTAR PLAY/PAUSE..."
 
                     # 2. GESTO DE MUTE (Indicador, Médio e Anelar levantados)
                     elif fingers['index'] and fingers['middle'] and fingers['ring'] and not fingers['pinky']:

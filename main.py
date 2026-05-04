@@ -69,7 +69,7 @@ def main():
         cd_text = "PRONTO" if is_ready else f"AGUARDE: {time_left:.1f}s"
         cv2.putText(frame, cd_text, (450, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0) if is_ready else (0, 165, 255), 2)
 
-        cv2.imshow("Controle de Apresentacao v2.0", frame)
+        cv2.imshow("Controle de Apresentacao v1.0", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'): break
 
     cap.release()
