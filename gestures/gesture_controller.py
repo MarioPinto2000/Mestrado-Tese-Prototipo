@@ -88,18 +88,18 @@ class GestureController:
     
     def _execute_multimedia_action(self, sw, sh, center_x, center_y):
         """Executa a sequência de movimentos e clique sem bloquear a câmara."""
-        # 1. Move para longe para garantir detecção de movimento[cite: 5]
+        # 1. Move para longe para garantir detecção de movimento
         pyautogui.moveTo(center_x - 150, center_y + 150, duration=0.2)
         time.sleep(0.1) 
         
-        # 2. Move para o centro para focar o vídeo[cite: 5]
+        # 2. Move para o centro para focar o vídeo
         pyautogui.moveTo(center_x, center_y, duration=0.2)
         time.sleep(0.1)
         
-        # 3. Executa o clique[cite: 5]
+        # 3. Executa o clique
         pyautogui.click() 
         
-        # 4. LIMPEZA: Move para o canto inferior direito[cite: 5]
+        # 4. LIMPEZA: Move para o canto inferior direito
         time.sleep(0.2)
         pyautogui.moveTo(sw - 5, sh - 5, duration=0.1)
 
@@ -195,7 +195,6 @@ class GestureController:
                             center_x, center_y = sw // 2, sh // 2
                             
                             # DISPARA A AÇÃO EM THREAD SEPARADA:
-                            # Isto impede que a câmara congele durante os delays
                             import threading
                             action_thread = threading.Thread(
                                 target=self._execute_multimedia_action, 
@@ -212,7 +211,7 @@ class GestureController:
                             pyautogui.press('volumemute')
                             return "AUDIO: MUTE/UNMUTE"
 
-                    # 3. GESTO DE VOLUME PROGRESSIVO (Apenas indicador levantado)[cite: 3]
+                    # 3. GESTO DE VOLUME PROGRESSIVO (Apenas indicador levantado)
                     elif fingers['index'] and not fingers['middle'] and not fingers['ring'] and not fingers['pinky']:
                         current_y = hand[8].y 
                         

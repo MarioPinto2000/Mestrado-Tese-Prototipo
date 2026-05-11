@@ -50,10 +50,9 @@ class HandDetector:
             
                 hands_landmarks.append(landmarks)
                 confidences.append(handedness.classification[0].score)
-                # Extrair o label ("Left" ou "Right")
                 labels.append(handedness.classification[0].label)
     
-        return image, hands_landmarks, confidences, labels # Agora retorna 4 valores
+        return image, hands_landmarks, confidences, labels 
 
     def draw_hand_landmarks(self, image: np.ndarray, hand_landmarks_list: List[List[HandLandmark]]) -> np.ndarray:
         h, w, _ = image.shape
@@ -92,14 +91,10 @@ def main():
         
         frame = cv2.resize(frame, (640, 480))
         
-        # Processamento
-        # O detect_hands já retorna o frame, os landmarks e as confianças
         _, hands_landmarks, confidences = detector.detect_hands(frame)
         
-        # Desenho
         frame = detector.draw_hand_landmarks(frame, hands_landmarks)
         
-        # Info na tela
         if hands_landmarks:
             for i, conf in enumerate(confidences):
                 cv2.putText(frame, f"Mão {i+1}: {conf:.2f}", (10, 30 + (i*30)), 

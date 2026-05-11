@@ -61,7 +61,7 @@ class AppUI:
         manual_win.title("Manual de Gestos")
         
         # Centrar a janela do manual
-        self.center_window(manual_win, 650, 700)
+        self.center_window(manual_win, 750, 750)
         
         manual_win.configure(bg="#1e1e2e")
 
@@ -113,8 +113,8 @@ class AppUI:
 
         txt.insert(tk.INSERT, "\nMÃO DIREITA → AÇÕES\n\n", "seccao")
         adicionar_item("• NAVEGAÇÃO", "Swipe com:\n- Indicador → Próximo\n- Mindinho → Anterior")
-        adicionar_item("• ZOOM", "Mão fechada abra a mão → Zoom +\nAberta feche a mão → Zoom -\nGesto OK → Reset")
-        adicionar_item("• MULTIMÉDIA", "Gesto OK → Play / Pause\nIndicador para cima → Vol +\nIndicador para baixo → Vol -")
+        adicionar_item("• ZOOM", "Mão fechada abra a mão → Zoom +\nAberta feche a mão → Zoom -\nGesto OK (ponta do indicador a tocar na ponta do polegar e dedos restantes esticados) → Reset")
+        adicionar_item("• MULTIMÉDIA", "Gesto OK (ponta do indicador a tocar na ponta do polegar e dedos restantes esticados) → Play / Pause\nIndicador para cima → Vol +\nIndicador para baixo → Vol -")
 
         txt.insert(tk.INSERT, "\nVOZ\n\n", "seccao")
         txt.insert(tk.INSERT, "Diga: 'Go to slide [número]' → Navegação para slide especifico\n\n", "normal")
@@ -122,8 +122,16 @@ class AppUI:
         txt.configure(state=tk.DISABLED)
 
     def run_main(self):
-        self.btn_start.config(state=tk.DISABLED, text="SISTEMA ATIVO")
-        threading.Thread(target=main, daemon=True).start()
+        self.btn_start.config(state=tk.DISABLED, text="SISTEMA ATIVO", bg="#45475a")
+        
+        def thread_wrapper():
+            main()
+            self.root.after(0, self.reset_button)
+
+        threading.Thread(target=thread_wrapper, daemon=True).start()
+
+    def reset_button(self):
+        self.btn_start.config(state=tk.NORMAL, text="INICIAR SISTEMA", bg="#a6e3a1")
 
 if __name__ == "__main__":
     root = tk.Tk()

@@ -11,12 +11,13 @@ class VoiceController:
 
     def listen_for_slide(self):
         self.is_listening = True
+        text = ""
+        comando_confirmado = ""
         with self.mic as source:
-            print("🎤 A ouvir...")
+            print("A ouvir...")
             self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
             
             try:
-                # Aumentado o tempo para capturar frases completas
                 audio = self.recognizer.listen(source, timeout=5, phrase_time_limit=5)
                 text = self.recognizer.recognize_google(audio, language='en-US').lower()
                 print(f"🗣️ Voz detectada: {text}")
@@ -25,13 +26,11 @@ class VoiceController:
                     target_number = None
                     words = text.split()
                     
-                    # 1. Tenta encontrar dígito direto (ex: "3")
                     for word in words:
                         if word.isdigit():
                             target_number = word
                             break
-                    
-                    # 2. Se não houver dígito, tenta converter palavras (ex: "twelve")
+
                     if not target_number:
                         try:
                             num_val = w2n.word_to_num(text)
@@ -48,3 +47,4 @@ class VoiceController:
                 print(f"Erro na voz: {e}")
         
         self.is_listening = False
+        return text, comando_confirmado
