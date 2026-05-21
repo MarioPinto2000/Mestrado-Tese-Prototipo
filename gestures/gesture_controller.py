@@ -4,6 +4,11 @@ from typing import List, Dict
 
 class GestureController:
     def __init__(self):
+        # --- NOVAS VARIÁVEIS PARA O TOGGLE (TEMPORIZADOR) ---
+        self.mode_timeout = 15.0  # Tempo em segundos que o modo fica ativo
+        self.mode_activation_time = 0.0 # Regista quando o modo foi ativado
+        
+        # Variáveis de Estado
         self.command_mode_active = False
         self.zoom_mode_active = False
         self.laser_active = False 
@@ -11,26 +16,24 @@ class GestureController:
         self.voice_mode_active = False
         
         self.last_command_time = 0
-        self.cooldown = 3.0
+        self.cooldown = 1.5
         
         self.last_volume_time = 0
         self.volume_cooldown = 0.05
         
-        #volume 
+        # volume 
         self.volume_anchor_y = None   
         self.volume_threshold = 0.001  
-        self.volume_cooldown = 0.001   
-        self.last_volume_time = 0
         
         # Âncoras para os movimentos do slide
         self.index_anchor_x = None
         self.pinky_anchor_x = None
-        self.swipe_threshold = 0.12 
+        self.swipe_threshold = 0.20
         
         # Memória para movimento do zoom
         self.prev_right_hand_open = False 
         self.prev_right_hand_closed = False
-
+        
     def get_cooldown_status(self):
         current_time = time.time()
         elapsed = current_time - self.last_command_time
@@ -51,11 +54,15 @@ class GestureController:
             return True
         return False
 
+    def _set_active_mode(self, mode_name: str):
+        """Função auxiliar para ativar apenas um modo e desativar os restantes."""
+        self.command_mode_active = (mode_name == 'command')
+        self.zoom_mode_active = (mode_name == 'zoom')
+        self.multimedia_active = (mode_name == 'multimedia')
+        self.voice_mode_active = (mode_name == 'voice')
+
     def update_state(self, labels: List[str], hands_landmarks: List[List], analyzer) -> bool:
-        self.command_mode_active = False 
-        self.zoom_mode_active = False
-        self.voice_mode_active = False
-        self.multimedia_active = False
+        current_time = time.time()
         
         for i, label in enumerate(labels):
             if label == "Left":
@@ -63,17 +70,52 @@ class GestureController:
                 ind, med, ring = fingers['index'], fingers['middle'], fingers['ring']
                 pinky = fingers['pinky']
 
-                # 1 dedo: Apenas Indicador
+                modo_detectado = None
+
+                # 1 dedo: Apenas Indicador (Navegação)
                 if ind and not med and not ring and not pinky:
-                    self.command_mode_active = True
-                # 2 dedos: Indicador e Médio
+                    modo_detectado = 'command'
+                # 2 dedos: Indicador e Médio (Zoom/Laser)
                 elif ind and med and not ring and not pinky:
-                    self.zoom_mode_active = True
+                    modo_detectado = 'zoom'
+                # 3 dedos: Multimédia
                 elif ind and med and ring and not pinky:
-                    self.multimedia_active = True
-                # Modo voz indicador e mindinho
+                    modo_detectado = 'multimedia'
+                # Modo voz: indicador e mindinho
                 elif ind and pinky and not med and not ring:
-                    self.voice_mode_active = True
+                    modo_detectado = 'voice'
+                
+                # SE UM GESTO VÁLIDO FOI DETECTADO:
+                if modo_detectado:
+                    # 1. Verifica se já existe algum modo ativo.
+                    # Se NÃO houver nenhum modo ativo (está tudo desligado), entra logo no modo.
+                    modo_atual_ativo = self.command_mode_active or self.zoom_mode_active or self.multimedia_active or self.voice_mode_active
+                    
+                    if not modo_atual_ativo:
+                        self._set_active_mode(modo_detectado)
+                        self.mode_activation_time = current_time
+                        self.last_command_time = current_time # Inicia o cooldown ao ligar pela primeira vez
+                    
+                    # 2. Se já houver um modo ativo e estás a tentar MUDAR para outro:
+                    # Só permite se o cooldown global de 1.5s já tiver passado
+                    else:
+                        # Verifica se o modo detectado é diferente do que já está a rodar
+                        modo_atual = None
+                        if self.command_mode_active: modo_atual = 'command'
+                        elif self.zoom_mode_active: modo_atual = 'zoom'
+                        elif self.multimedia_active: modo_atual = 'multimedia'
+                        elif self.voice_mode_active: modo_atual = 'voice'
+                        
+                        if modo_detectado != modo_atual:
+                            # Se o cooldown permitir, faz a troca e reinicia o relógio
+                            if self._can_execute():
+                                self._set_active_mode(modo_detectado)
+                                self.mode_activation_time = current_time
+
+        # --- VERIFICAÇÃO DO TEMPORIZADOR ---
+        # Se passaram 15 segundos desde o último gesto da mão esquerda, desativa todos os modos
+        if (current_time - self.mode_activation_time) > self.mode_timeout:
+            self._set_active_mode(None)
         
         # Limpeza de memória ao sair dos modos
         if not self.command_mode_active:
@@ -88,23 +130,19 @@ class GestureController:
     
     def _execute_multimedia_action(self, sw, sh, center_x, center_y):
         """Executa a sequência de movimentos e clique sem bloquear a câmara."""
-        # 1. Move para longe para garantir detecção de movimento
+        import threading # Garantir que está importado para a thread multimédia
+        
         pyautogui.moveTo(center_x - 150, center_y + 150, duration=0.2)
         time.sleep(0.1) 
-        
-        # 2. Move para o centro para focar o vídeo
         pyautogui.moveTo(center_x, center_y, duration=0.2)
         time.sleep(0.1)
-        
-        # 3. Executa o clique
         pyautogui.click() 
-        
-        # 4. LIMPEZA: Move para o canto inferior direito
         time.sleep(0.2)
         pyautogui.moveTo(sw - 5, sh - 5, duration=0.1)
 
     def get_right_hand_command(self, labels: List[str], hands_landmarks: List[List], analyzer) -> str:
-        if not self.command_mode_active and not self.zoom_mode_active and not self.multimedia_active:
+        # Verifica se há algum modo ativo no momento (controlado agora pelo temporizador)
+        if not self.command_mode_active and not self.zoom_mode_active and not self.multimedia_active and not self.voice_mode_active:
             return "Aguardando Ativador (Mao Esq.)"
 
         for i, label in enumerate(labels):
@@ -112,43 +150,59 @@ class GestureController:
                 hand = hands_landmarks[i]
                 fingers = analyzer.count_extended_fingers(hand)
                 
-                # Ignorar polegar na contagem principal para evitar conflitos
                 dedos_principais = [fingers['index'], fingers['middle'], fingers['ring'], fingers['pinky']]
                 total_sem_polegar = sum(dedos_principais)
                 
-                # --- MODO NAVEGAÇÃO ---
+              # --- MODO NAVEGAÇÃO ---
                 if self.command_mode_active:
                     if total_sem_polegar == 1:
                         if fingers['index']:
-                            self.pinky_anchor_x = None
-                            current_x = hand[8].x 
-                            if self.index_anchor_x is None: self.index_anchor_x = current_x
                             
-                            displacement = current_x - self.index_anchor_x
-                            if abs(displacement) > self.swipe_threshold:
+                            # Posição X atual da ponta do indicador
+                            ponta_atual_x = hand[8].x 
+                            
+                            # 1. Se for o primeiro frame com o dedo levantado, inicializa a âncora e sai
+                            if self.index_anchor_x is None: 
+                                self.index_anchor_x = ponta_atual_x
+                                return "Modo Rastreio: Dedo detetado"
+                            
+                            # 2. Calcula o deslocamento (Velocidade/Direção do movimento)
+                            # Frame Atual - Frame Anterior
+                            deslocamento = ponta_atual_x - self.index_anchor_x
+                            
+                            # Atualiza IMEDIATAMENTE a âncora para o próximo frame seguir o dedo (Follow)
+                            self.index_anchor_x = ponta_atual_x
+                            
+                            # 3. VERIFICAÇÃO DO COOLDOWN GLOBAL
+                            # Se o teu cooldown de 1.5s ainda estiver a correr, ignoramos o movimento
+                            cooldown_pronto, _ = self.get_cooldown_status()
+                            if not cooldown_pronto:
+                                return "Modo Rastreio: Aguardando Cooldown"
+                            
+                            # 4. VALIDAÇÃO DO MOVIMENTO (Usa o teu self.swipe_threshold ajustado para sensibilidade)
+                            # Como o cálculo é feito frame a frame, o threshold deve ser pequeno (ex: 0.03 a 0.05)
+                            # para detetar um movimento rápido de arrasto.
+                            threshold_movimento = 0.04 
+                            
+                            # MOVER PARA A ESQUERDA (Deslocamento negativo: o X diminui) -> Próximo Slide
+                            if deslocamento < -threshold_movimento:
                                 if self._can_execute():
                                     pyautogui.press('right')
-                                    self.index_anchor_x = current_x
-                                    return "SWIPE: Próximo >>"
-                            return "Modo Slide: Indicador"
-
-                        elif fingers['pinky']:
-                            self.index_anchor_x = None
-                            current_x = hand[20].x 
-                            if self.pinky_anchor_x is None: self.pinky_anchor_x = current_x
+                                    return "RASTREIO: Próximo >>"
                             
-                            displacement = current_x - self.pinky_anchor_x
-                            if abs(displacement) > self.swipe_threshold:
+                            # MOVER PARA A DIREITA (Deslocamento positivo: o X aumenta) -> Slide Anterior
+                            elif deslocamento > threshold_movimento:
                                 if self._can_execute():
                                     pyautogui.press('left')
-                                    self.pinky_anchor_x = current_x
-                                    return "SWIPE: Anterior <<"
-                            return "Modo Slide: Mindinho"
+                                    return "RASTREIO: Anterior <<"
+                                    
+                            return "A seguir a ponta do dedo..."
                     
+                    # Se fechar a mão, limpa o rastreio
                     self.index_anchor_x = None
-                    self.pinky_anchor_x = None
-                    return "Use Indicador ou Mindinho"
-
+                    return "Use o Indicador para Navegar"
+                
+                
                 # --- MODO ZOOM / POINTER ---
                 elif self.zoom_mode_active:
                     # 1. GESTO LASER (Indicador + Médio)
@@ -194,7 +248,6 @@ class GestureController:
                             sw, sh = pyautogui.size()
                             center_x, center_y = sw // 2, sh // 2
                             
-                            # DISPARA A AÇÃO EM THREAD SEPARADA:
                             import threading
                             action_thread = threading.Thread(
                                 target=self._execute_multimedia_action, 
