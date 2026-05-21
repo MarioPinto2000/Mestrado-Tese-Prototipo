@@ -114,7 +114,7 @@ class AppUI:
         txt.insert(tk.INSERT, "\nMÃO DIREITA → AÇÕES\n\n", "seccao")
         adicionar_item("• NAVEGAÇÃO", "Swipe com:\n- Indicador → Próximo\n- Mindinho → Anterior")
         adicionar_item("• ZOOM", "Mão fechada abra a mão → Zoom +\nAberta feche a mão → Zoom -\nGesto OK (ponta do indicador a tocar na ponta do polegar e dedos restantes esticados) → Reset")
-        adicionar_item("• MULTIMÉDIA", "Gesto OK (ponta do indicador a tocar na ponta do polegar e dedos restantes esticados) → Play / Pause\nIndicador para cima → Vol +\nIndicador para baixo → Vol -")
+        adicionar_item("• MULTIMÉDIA", "Gesto OK (ponta do indicador a tocar na ponta do polegar e dedos restantes esticados) → Play / Pause\nIndicador, Médio e Anelar para cima  → Mute/Unmute\nIndicador para cima → Vol +\nIndicador para baixo → Vol -")
 
         txt.insert(tk.INSERT, "\nVOZ\n\n", "seccao")
         txt.insert(tk.INSERT, "Diga: 'Go to slide [número]' → Navegação para slide especifico\n\n", "normal")

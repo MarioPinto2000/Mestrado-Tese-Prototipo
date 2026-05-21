@@ -143,7 +143,7 @@ class GestureController:
     def get_right_hand_command(self, labels: List[str], hands_landmarks: List[List], analyzer) -> str:
         # Verifica se há algum modo ativo no momento (controlado agora pelo temporizador)
         if not self.command_mode_active and not self.zoom_mode_active and not self.multimedia_active and not self.voice_mode_active:
-            return "Aguardando Ativador (Mao Esq.)"
+            return "A espera do modo."
 
         for i, label in enumerate(labels):
             if label == "Right":
@@ -164,7 +164,7 @@ class GestureController:
                             # 1. Se for o primeiro frame com o dedo levantado, inicializa a âncora e sai
                             if self.index_anchor_x is None: 
                                 self.index_anchor_x = ponta_atual_x
-                                return "Modo Rastreio: Dedo detetado"
+                                return "Indicador detetado."
                             
                             # 2. Calcula o deslocamento (Velocidade/Direção do movimento)
                             # Frame Atual - Frame Anterior
@@ -177,7 +177,7 @@ class GestureController:
                             # Se o teu cooldown de 1.5s ainda estiver a correr, ignoramos o movimento
                             cooldown_pronto, _ = self.get_cooldown_status()
                             if not cooldown_pronto:
-                                return "Modo Rastreio: Aguardando Cooldown"
+                                return "Cooldown..."
                             
                             # 4. VALIDAÇÃO DO MOVIMENTO (Usa o teu self.swipe_threshold ajustado para sensibilidade)
                             # Como o cálculo é feito frame a frame, o threshold deve ser pequeno (ex: 0.03 a 0.05)
@@ -196,11 +196,11 @@ class GestureController:
                                     pyautogui.press('left')
                                     return "RASTREIO: Anterior <<"
                                     
-                            return "A seguir a ponta do dedo..."
+                            return "A seguir indicador."
                     
                     # Se fechar a mão, limpa o rastreio
                     self.index_anchor_x = None
-                    return "Use o Indicador para Navegar"
+                    return "..."
                 
                 
                 # --- MODO ZOOM / POINTER ---
@@ -236,7 +236,7 @@ class GestureController:
 
                     self.prev_right_hand_open = (abertos_total >= 4)
                     self.prev_right_hand_closed = (abertos_total <= 1)
-                    return "Modo Zoom"
+                    return "Modo Focus"
                 
                 # --- MODO MULTIMÉDIA ---
                 elif self.multimedia_active:
@@ -256,7 +256,7 @@ class GestureController:
                             )
                             action_thread.start()
                             
-                            return "A EXECUTAR PLAY/PAUSE..."
+                            return "PLAY/PAUSE..."
 
                     # 2. GESTO DE MUTE (Indicador, Médio e Anelar levantados)
                     elif fingers['index'] and fingers['middle'] and fingers['ring'] and not fingers['pinky']:
@@ -287,6 +287,6 @@ class GestureController:
                         return "Modo Volume"
                     
                     self.volume_anchor_y = None
-                    return "Modo Multimédia"
+                    return "Modo Multimedia"
     
-        return "Mão Direita não detectada"
+        return "Mao Direita nao detetada"
