@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import subprocess
 import sys
+import os
 from pathlib import Path
 
 class Installer:
@@ -8,33 +9,46 @@ class Installer:
         self.python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
         
     def check_python_version(self):
-        """Verifica se a versão do Python é 3.8+"""
+        """Verifica se a versao do Python e 3.8+"""
         if sys.version_info.major < 3 or (sys.version_info.major == 3 and sys.version_info.minor < 8):
-            print(f"❌ Erro: Python 3.8+ necessário. Versão atual: {self.python_version}")
+            print(f"❌ Erro: Python 3.8+ necessario. Versao atual: {self.python_version}")
             return False
-        print(f"✓ Python {self.python_version} compatível")
+        print(f"✓ Python {self.python_version} compativel")
         return True
 
     def install_requirements(self):
-        """Instala as dependências do arquivo requirements.txt"""
+        """Instala as dependencias do arquivo requirements.txt"""
         req_path = Path(__file__).parent / "requirements.txt"
         
         if not req_path.exists():
-            print("❌ Erro: requirements.txt não encontrado!")
+            print("❌ Erro: requirements.txt nao encontrado!")
             return False
 
-        print("\n📦 Instalando dependências (OpenCV, MediaPipe, SpeechRecognition, etc)...")
+        print("\n📦 Instalando dependencias (OpenCV, MediaPipe, SpeechRecognition, etc)...")
         try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", str(req_path)])
-            print("✓ Dependências instaladas com sucesso!\n")
+            # Forca o ambiente do subset do PIP a rodar em UTF-8 para prevenir erros de caracteres
+            env = os.environ.copy()
+            env["PYTHONUTF8"] = "1"
+
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", "-r", str(req_path)],
+                env=env
+            )
+            print("✓ Dependencias instaladas com sucesso!\n")
             return True
         except Exception as e:
-            print(f"❌ Erro na instalação: {e}")
+            print(f"❌ Erro na instalacao: {e}")
             return False
 
     def verify(self):
-        """Verifica se os imports críticos funcionam"""
+        """Verifica se os imports criticos funcionam"""
         print("🔍 Verificando pacotes instalados...")
+        
+        # Forca o Python a atualizar a arvore de pacotes instalados no utilizador
+        import site
+        import importlib
+        importlib.reload(site)
+        
         packages = {
             'opencv-python': 'cv2',
             'mediapipe': 'mediapipe',
@@ -50,7 +64,7 @@ class Installer:
                 __import__(imp)
                 print(f"  ✓ {pkg}")
             except ImportError:
-                print(f"  ❌ {pkg} (falhou)")
+                print(f"  ❌ {pkg} (falhou no import)")
                 all_ok = False
         return all_ok
 
@@ -63,7 +77,7 @@ class Installer:
             if self.verify():
                 print("\n✅ TUDO PRONTO! Podes correr o teu projeto.")
             else:
-                print("\n⚠️  Alguns pacotes de voz podem precisar de instalação manual.")
+                print("\n⚠️  Alguns pacotes de voz ou audio nativo podem precisar de atencao manual.")
         
         print("="*40 + "\n")
 

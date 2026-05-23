@@ -4,11 +4,12 @@ from typing import List, Dict
 
 class GestureController:
     def __init__(self):
-        # --- NOVAS VARIÁVEIS PARA O TOGGLE (TEMPORIZADOR) ---
-        self.mode_timeout = 15.0  # Tempo em segundos que o modo fica ativo
-        self.mode_activation_time = 0.0 # Regista quando o modo foi ativado
+        # --- VARIÁVEIS PARA O TOGGLE (TEMPORIZADOR) ---
+        self.mode_timeout = 15.0  
+        self.mode_activation_time = 0.0 
+        self.last_mode_change_time = 0.0 
         
-        # Variáveis de Estado
+        # Variaveis de Estado
         self.command_mode_active = False
         self.zoom_mode_active = False
         self.laser_active = False 
@@ -16,21 +17,22 @@ class GestureController:
         self.voice_mode_active = False
         
         self.last_command_time = 0
-        self.cooldown = 1.5
+        self.cooldown = 2.0  
         
         self.last_volume_time = 0
-        self.volume_cooldown = 0.05
+        self.volume_cooldown = 0.02  
         
-        # volume 
+        # Volume
         self.volume_anchor_y = None   
         self.volume_threshold = 0.001  
+        self.virtual_volume = 100.0
         
-        # Âncoras para os movimentos do slide
+        # Ancoras para os movimentos do slide
         self.index_anchor_x = None
         self.pinky_anchor_x = None
-        self.swipe_threshold = 0.20
+        self.swipe_threshold = 0.30
         
-        # Memória para movimento do zoom
+        # Memoria para movimento do zoom
         self.prev_right_hand_open = False 
         self.prev_right_hand_closed = False
         
@@ -55,7 +57,6 @@ class GestureController:
         return False
 
     def _set_active_mode(self, mode_name: str):
-        """Função auxiliar para ativar apenas um modo e desativar os restantes."""
         self.command_mode_active = (mode_name == 'command')
         self.zoom_mode_active = (mode_name == 'zoom')
         self.multimedia_active = (mode_name == 'multimedia')
@@ -72,34 +73,23 @@ class GestureController:
 
                 modo_detectado = None
 
-                # 1 dedo: Apenas Indicador (Navegação)
                 if ind and not med and not ring and not pinky:
                     modo_detectado = 'command'
-                # 2 dedos: Indicador e Médio (Zoom/Laser)
                 elif ind and med and not ring and not pinky:
                     modo_detectado = 'zoom'
-                # 3 dedos: Multimédia
                 elif ind and med and ring and not pinky:
                     modo_detectado = 'multimedia'
-                # Modo voz: indicador e mindinho
-                elif ind and pinky and not med and not ring:
+                elif ind and med and ring and pinky:
                     modo_detectado = 'voice'
                 
-                # SE UM GESTO VÁLIDO FOI DETECTADO:
                 if modo_detectado:
-                    # 1. Verifica se já existe algum modo ativo.
-                    # Se NÃO houver nenhum modo ativo (está tudo desligado), entra logo no modo.
                     modo_atual_ativo = self.command_mode_active or self.zoom_mode_active or self.multimedia_active or self.voice_mode_active
                     
                     if not modo_atual_ativo:
                         self._set_active_mode(modo_detectado)
                         self.mode_activation_time = current_time
-                        self.last_command_time = current_time # Inicia o cooldown ao ligar pela primeira vez
-                    
-                    # 2. Se já houver um modo ativo e estás a tentar MUDAR para outro:
-                    # Só permite se o cooldown global de 1.5s já tiver passado
+                        self.last_mode_change_time = current_time  
                     else:
-                        # Verifica se o modo detectado é diferente do que já está a rodar
                         modo_atual = None
                         if self.command_mode_active: modo_atual = 'command'
                         elif self.zoom_mode_active: modo_atual = 'zoom'
@@ -107,17 +97,14 @@ class GestureController:
                         elif self.voice_mode_active: modo_atual = 'voice'
                         
                         if modo_detectado != modo_atual:
-                            # Se o cooldown permitir, faz a troca e reinicia o relógio
-                            if self._can_execute():
+                            if (current_time - self.last_mode_change_time) > 1.5:
                                 self._set_active_mode(modo_detectado)
                                 self.mode_activation_time = current_time
+                                self.last_mode_change_time = current_time  
 
-        # --- VERIFICAÇÃO DO TEMPORIZADOR ---
-        # Se passaram 15 segundos desde o último gesto da mão esquerda, desativa todos os modos
         if (current_time - self.mode_activation_time) > self.mode_timeout:
             self._set_active_mode(None)
         
-        # Limpeza de memória ao sair dos modos
         if not self.command_mode_active:
             self.index_anchor_x = None
             self.pinky_anchor_x = None
@@ -129,9 +116,7 @@ class GestureController:
         return self.command_mode_active or self.zoom_mode_active or self.multimedia_active or self.voice_mode_active
     
     def _execute_multimedia_action(self, sw, sh, center_x, center_y):
-        """Executa a sequência de movimentos e clique sem bloquear a câmara."""
-        import threading # Garantir que está importado para a thread multimédia
-        
+        import threading 
         pyautogui.moveTo(center_x - 150, center_y + 150, duration=0.2)
         time.sleep(0.1) 
         pyautogui.moveTo(center_x, center_y, duration=0.2)
@@ -141,7 +126,6 @@ class GestureController:
         pyautogui.moveTo(sw - 5, sh - 5, duration=0.1)
 
     def get_right_hand_command(self, labels: List[str], hands_landmarks: List[List], analyzer) -> str:
-        # Verifica se há algum modo ativo no momento (controlado agora pelo temporizador)
         if not self.command_mode_active and not self.zoom_mode_active and not self.multimedia_active and not self.voice_mode_active:
             return "A espera do modo."
 
@@ -153,44 +137,29 @@ class GestureController:
                 dedos_principais = [fingers['index'], fingers['middle'], fingers['ring'], fingers['pinky']]
                 total_sem_polegar = sum(dedos_principais)
                 
-              # --- MODO NAVEGAÇÃO ---
+                # --- MODO NAVEGAÇÃO ---
                 if self.command_mode_active:
                     if total_sem_polegar == 1:
                         if fingers['index']:
-                            
-                            # Posição X atual da ponta do indicador
                             ponta_atual_x = hand[8].x 
                             
-                            # 1. Se for o primeiro frame com o dedo levantado, inicializa a âncora e sai
                             if self.index_anchor_x is None: 
                                 self.index_anchor_x = ponta_atual_x
                                 return "Indicador detetado."
                             
-                            # 2. Calcula o deslocamento (Velocidade/Direção do movimento)
-                            # Frame Atual - Frame Anterior
                             deslocamento = ponta_atual_x - self.index_anchor_x
-                            
-                            # Atualiza IMEDIATAMENTE a âncora para o próximo frame seguir o dedo (Follow)
                             self.index_anchor_x = ponta_atual_x
                             
-                            # 3. VERIFICAÇÃO DO COOLDOWN GLOBAL
-                            # Se o teu cooldown de 1.5s ainda estiver a correr, ignoramos o movimento
                             cooldown_pronto, _ = self.get_cooldown_status()
                             if not cooldown_pronto:
                                 return "Cooldown..."
                             
-                            # 4. VALIDAÇÃO DO MOVIMENTO (Usa o teu self.swipe_threshold ajustado para sensibilidade)
-                            # Como o cálculo é feito frame a frame, o threshold deve ser pequeno (ex: 0.03 a 0.05)
-                            # para detetar um movimento rápido de arrasto.
                             threshold_movimento = 0.04 
                             
-                            # MOVER PARA A ESQUERDA (Deslocamento negativo: o X diminui) -> Próximo Slide
                             if deslocamento < -threshold_movimento:
                                 if self._can_execute():
                                     pyautogui.press('right')
-                                    return "RASTREIO: Próximo >>"
-                            
-                            # MOVER PARA A DIREITA (Deslocamento positivo: o X aumenta) -> Slide Anterior
+                                    return "RASTREIO: Proximo >>"
                             elif deslocamento > threshold_movimento:
                                 if self._can_execute():
                                     pyautogui.press('left')
@@ -198,37 +167,32 @@ class GestureController:
                                     
                             return "A seguir indicador."
                     
-                    # Se fechar a mão, limpa o rastreio
                     self.index_anchor_x = None
                     return "..."
                 
-                
                 # --- MODO ZOOM / POINTER ---
                 elif self.zoom_mode_active:
-                    # 1. GESTO LASER (Indicador + Médio)
                     if fingers['index'] and fingers['middle'] and total_sem_polegar == 2:
                         self.laser_active = True
                         return "APONTADOR ATIVO"
                     else:
                         self.laser_active = False
 
-                    # 2. RESET ZOOM (Gesto OK)
                     dist_ok = analyzer.calculate_distance((hand[4].x, hand[4].y), (hand[8].x, hand[8].y))
                     if dist_ok < 0.10 and fingers['middle'] and fingers['pinky']:
                         if self._can_execute():
                             pyautogui.hotkey('ctrl', 'alt', '0')
                             return "RESET ZOOM"
 
-                    # 3. ZOOM IN/OUT (Mão Aberta/Fechada)
                     abertos_total = sum(fingers.values())
-                    mão_aberta, mão_fechada = abertos_total >= 4, abertos_total <= 1
+                    mao_aberta, mao_fechada = abertos_total >= 4, abertos_total <= 1
                     
-                    if self.prev_right_hand_closed and mão_aberta:
+                    if self.prev_right_hand_closed and mao_aberta:
                         if self._can_execute():
                             for _ in range(3): pyautogui.hotkey('ctrl', '+')
                             self.prev_right_hand_closed = False 
                             return "Zoom In"
-                    elif self.prev_right_hand_open and mão_fechada:
+                    elif self.prev_right_hand_open and mao_fechada:
                         if self._can_execute():
                             for _ in range(3): pyautogui.hotkey('ctrl', '-')
                             self.prev_right_hand_open = False 
@@ -242,7 +206,6 @@ class GestureController:
                 elif self.multimedia_active:
                     dist_ok = analyzer.calculate_distance((hand[4].x, hand[4].y), (hand[8].x, hand[8].y))
                     
-                    # 1. GESTO DE PAUSA/PLAY (Gesto OK)
                     if dist_ok < 0.05 and fingers['middle'] and fingers['ring'] and fingers['pinky']:
                         if self._can_execute(): 
                             sw, sh = pyautogui.size()
@@ -255,16 +218,14 @@ class GestureController:
                                 daemon=True
                             )
                             action_thread.start()
-                            
                             return "PLAY/PAUSE..."
 
-                    # 2. GESTO DE MUTE (Indicador, Médio e Anelar levantados)
-                    elif fingers['index'] and fingers['middle'] and fingers['ring'] and not fingers['pinky']:
+                    elif fingers['index'] and fingers['middle'] and not fingers['ring'] and not fingers['pinky']:
                         if self._can_execute(): 
                             pyautogui.press('volumemute')
                             return "AUDIO: MUTE/UNMUTE"
 
-                    # 3. GESTO DE VOLUME PROGRESSIVO (Apenas indicador levantado)
+                    # Ajuste do Volume por Arrastre Original
                     elif fingers['index'] and not fingers['middle'] and not fingers['ring'] and not fingers['pinky']:
                         current_y = hand[8].y 
                         
@@ -276,17 +237,29 @@ class GestureController:
 
                         if abs(displacement) > self.volume_threshold:
                             if self._can_execute_volume():
+                                sensibilidade = 150.0  
+                                novo_volume = self.virtual_volume + (displacement * sensibilidade)
+                                self.virtual_volume = max(0.0, min(100.0, novo_volume))
+                                
                                 if displacement > 0:
                                     pyautogui.press('volumeup')
                                 else:
                                     pyautogui.press('volumedown')
-                                
+
                                 self.volume_anchor_y = current_y
-                                return "Ajustando Volume"
+                                return f"Volume: {int(self.virtual_volume)}%"
                         
                         return "Modo Volume"
                     
                     self.volume_anchor_y = None
                     return "Modo Multimedia"
+                
+                # --- MODO VOZ ---
+                elif self.voice_mode_active:
+                    return "Modo Voz Ativo"
     
         return "Mao Direita nao detetada"
+
+    def draw_volume_bar(self, frame):
+        """Metodo mantido vazio para nao quebrar chamadas externas no main.py"""
+        pass

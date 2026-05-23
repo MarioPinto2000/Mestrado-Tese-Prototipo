@@ -8,11 +8,9 @@ from gestures.hand_analyzer import HandAnalyzer
 from gestures.gesture_controller import GestureController
 from voice.voice_commands import VoiceController 
 
-# Configurações de performance
 pyautogui.PAUSE = 0
 pyautogui.FAILSAFE = False
 
-# Variáveis globais para o HUD
 status_voz_hud = "Status de voz: A aguardar..."
 ultima_detecao = "Voz detectada: ---"
 
@@ -32,7 +30,6 @@ def main():
         ret, frame = cap.read()
         if not ret: break
         
-        # Processamento de imagem
         frame = cv2.flip(frame, 1)
         frame = cv2.resize(frame, (640, 480))
         h_cam, w_cam, _ = frame.shape
@@ -40,15 +37,12 @@ def main():
         current_time = time.time()
         _, hands_landmarks, confidences, labels = detector.detect_hands(frame)
         
-        # 1. VERIFICAÇÃO FORÇADA DO TIMEOUT (Mesmo sem mãos na câmara)
         if (current_time - controller.mode_activation_time) > controller.mode_timeout:
-            controller._set_active_mode(None) # Desativa os modos no controlador
+            controller._set_active_mode(None)
 
-        # Valores padrão para quando o sistema está inativo
-        status_text = "Modo Inativo"
+        status_text = "..."
         color_action = (150, 150, 150) 
         
-        # 2. SE HOUVER MÃOS, PROCESSA OS GESTOS
         if hands_landmarks:
             is_active = controller.update_state(labels, hands_landmarks, analyzer)
             
@@ -58,17 +52,10 @@ def main():
                         def listen_thread():
                             global status_voz_hud, ultima_detecao
                             status_voz_hud = "Status de voz: A ouvir..."
-                            
                             resultado = voice.listen_for_slide()
-                            
-                            if isinstance(resultado, tuple):
-                                texto_ouvido = resultado[0]
-                            else:
-                                texto_ouvido = resultado
-
+                            texto_ouvido = resultado[0] if isinstance(resultado, tuple) else resultado
                             if texto_ouvido:
                                 ultima_detecao = f"Voz detectada: {texto_ouvido}"
-                            
                             status_voz_hud = "Status de voz: Pronto"
 
                         threading.Thread(target=listen_thread, daemon=True).start()
@@ -79,7 +66,6 @@ def main():
                     status_text = controller.get_right_hand_command(labels, hands_landmarks, analyzer)
                     color_action = (0, 255, 0) 
             
-            # Laser (Rato)
             if controller.zoom_mode_active and controller.laser_active:
                 for i, label in enumerate(labels):
                     if label == "Right":
@@ -92,7 +78,6 @@ def main():
 
             frame = detector.draw_hand_landmarks(frame, hands_landmarks)
 
-        # --- LÓGICA DE DADOS PARA O HUD SUPERIOR ---
         current_mode_str = "INATIVO"
         color_mode = (150, 150, 150) 
         
@@ -113,42 +98,37 @@ def main():
         if current_mode_str != "INATIVO":
             toggle_time_left = max(0, controller.mode_timeout - (current_time - controller.mode_activation_time))
         else:
-            status_text = "Modo Inativo"
+            status_text = "..."
             color_action = (150, 150, 150)
 
         is_ready, cd_time_left = controller.get_cooldown_status()
         cd_text = "PRONTO" if is_ready else f"ESPERE: {cd_time_left:.1f}s"
         cd_color = (0, 255, 0) if is_ready else (0, 165, 255)
 
-        # --- DESENHO DO HUD SUPERIOR ---
+        controller.draw_volume_bar(frame)
+
+        # DESENHO DO HUD SUPERIOR
         cv2.rectangle(frame, (0, 0), (640, 60), (20, 20, 20), -1)
-        
-        # LADO ESQUERDO: MODO E TEMPO TOGGLE
         cv2.putText(frame, f"Modo: {current_mode_str}", (15, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color_mode, 2)
         if current_mode_str != "INATIVO":
             cv2.putText(frame, f"Tempo Restante: {toggle_time_left:.1f}s", (15, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         else:
             cv2.putText(frame, "Faca um gesto com a mao esq.", (15, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (150, 150, 150), 1)
         
-        # LADO DIREITO: COOLDOWN E AÇÃO DA MÃO DIREITA
         cv2.putText(frame, f"Cooldown: {cd_text}", (400, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, cd_color, 2)
         cv2.putText(frame, status_text, (400, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_action, 1)
 
-        # --- HUD INFERIOR MODIFICADO (Só aparece em Modo Voz) ---
         if controller.voice_mode_active:
             overlay = frame.copy()
             cv2.rectangle(overlay, (0, 410), (640, 480), (0, 0, 0), -1)
             cv2.addWeighted(overlay, 0.7, frame, 0.3, 0, frame)
-
             cv2.putText(frame, status_voz_hud, (15, 435), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
             cv2.putText(frame, ultima_detecao, (15, 465), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
 
         cv2.imshow("Controle de Apresentacao v1.0", frame)
         
-        if cv2.waitKey(1) & 0xFF == ord('q'): 
-            break
-        if cv2.getWindowProperty("Controle de Apresentacao v1.0", cv2.WND_PROP_VISIBLE) < 1:
-            break
+        if cv2.waitKey(1) & 0xFF == ord('q'): break
+        if cv2.getWindowProperty("Controle de Apresentacao v1.0", cv2.WND_PROP_VISIBLE) < 1: break
 
     cap.release()
     cv2.destroyAllWindows()
