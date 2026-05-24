@@ -25,7 +25,6 @@ class GestureController:
         # Volume
         self.volume_anchor_y = None   
         self.volume_threshold = 0.001  
-        self.virtual_volume = 100.0
         
         # Ancoras para os movimentos do slide
         self.index_anchor_x = None
@@ -238,8 +237,6 @@ class GestureController:
                         if abs(displacement) > self.volume_threshold:
                             if self._can_execute_volume():
                                 sensibilidade = 150.0  
-                                novo_volume = self.virtual_volume + (displacement * sensibilidade)
-                                self.virtual_volume = max(0.0, min(100.0, novo_volume))
                                 
                                 if displacement > 0:
                                     pyautogui.press('volumeup')
@@ -247,7 +244,7 @@ class GestureController:
                                     pyautogui.press('volumedown')
 
                                 self.volume_anchor_y = current_y
-                                return f"Volume: {int(self.virtual_volume)}%"
+                                
                         
                         return "Modo Volume"
                     
@@ -259,7 +256,3 @@ class GestureController:
                     return "Modo Voz Ativo"
     
         return "Mao Direita nao detetada"
-
-    def draw_volume_bar(self, frame):
-        """Metodo mantido vazio para nao quebrar chamadas externas no main.py"""
-        pass

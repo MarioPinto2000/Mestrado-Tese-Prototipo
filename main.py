@@ -105,7 +105,6 @@ def main():
         cd_text = "PRONTO" if is_ready else f"ESPERE: {cd_time_left:.1f}s"
         cd_color = (0, 255, 0) if is_ready else (0, 165, 255)
 
-        controller.draw_volume_bar(frame)
 
         # DESENHO DO HUD SUPERIOR
         cv2.rectangle(frame, (0, 0), (640, 60), (20, 20, 20), -1)

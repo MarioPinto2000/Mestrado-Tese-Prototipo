@@ -24,7 +24,7 @@ class Installer:
             print("❌ Erro: requirements.txt nao encontrado!")
             return False
 
-        print("\n📦 Instalando dependencias (OpenCV, MediaPipe, SpeechRecognition, etc)...")
+        print("\n📦 Instalando dependencias (OpenCV, MediaPipe, Pycaw, SpeechRecognition, etc)...")
         try:
             # Forca o ambiente do subset do PIP a rodar em UTF-8 para prevenir erros de caracteres
             env = os.environ.copy()
@@ -49,6 +49,7 @@ class Installer:
         import importlib
         importlib.reload(site)
         
+        # Adicionados pycaw e comtypes para o controlo de volume real do Windows
         packages = {
             'opencv-python': 'cv2',
             'mediapipe': 'mediapipe',
