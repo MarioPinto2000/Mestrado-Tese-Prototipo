@@ -4,7 +4,7 @@ from typing import List, Dict
 
 class GestureController:
     def __init__(self):
-        # --- VARIÁVEIS PARA O TOGGLE (TEMPORIZADOR) ---
+        # --- VARIÁVEIS PARA TOGGLE  ---
         self.mode_timeout = 15.0  
         self.mode_activation_time = 0.0 
         self.last_mode_change_time = 0.0 
@@ -22,9 +22,11 @@ class GestureController:
         self.last_volume_time = 0
         self.volume_cooldown = 0.02  
         
-        # Volume
+        # --- OTIMIZAÇÃO E SUAVIZAÇÃO DE VOLUME ---
         self.volume_anchor_y = None   
-        self.volume_threshold = 0.001
+        self.volume_threshold = 0.008  # Limiar ligeiramente ajustado para evitar micro-movimentos fantasmas
+        self.volume_pose_counter = 0   # Contador de frames estáveis para filtro debounce
+        self.y_history = []            # Histórico de posições para média móvel (anti-treme)
         
         # Ancoras para os movimentos do slide
         self.index_anchor_x = None
@@ -111,6 +113,8 @@ class GestureController:
             self.laser_active = False
         if not self.multimedia_active:
             self.volume_anchor_y = None
+            self.volume_pose_counter = 0
+            self.y_history.clear()
                 
         return self.command_mode_active or self.zoom_mode_active or self.multimedia_active or self.voice_mode_active
     
@@ -206,6 +210,7 @@ class GestureController:
                     dist_ok = analyzer.calculate_distance((hand[4].x, hand[4].y), (hand[8].x, hand[8].y))
                     
                     if dist_ok < 0.05 and fingers['middle'] and fingers['ring'] and fingers['pinky']:
+                        self.volume_pose_counter = 0  # Reseta o contador de volume se mudar de gesto
                         if self._can_execute(): 
                             sw, sh = pyautogui.size()
                             center_x, center_y = sw // 2, sh // 2
@@ -220,13 +225,22 @@ class GestureController:
                             return "PLAY/PAUSE..."
 
                     elif fingers['index'] and fingers['middle'] and not fingers['ring'] and not fingers['pinky']:
+                        self.volume_pose_counter = 0
                         if self._can_execute(): 
                             pyautogui.press('volumemute')
                             return "AUDIO: MUTE/UNMUTE"
 
-                    # Ajuste do Volume 
+                    # --- AJUSTE DE VOLUME ---
                     elif fingers['index'] and not fingers['middle'] and not fingers['ring'] and not fingers['pinky']:
-                        current_y = hand[8].y 
+                        self.volume_pose_counter += 1
+                        if self.volume_pose_counter < 3:
+                            return "A validar gesto de Volume..."
+
+                        # Filtro de Suavização (Média Móvel): Remove o ruído
+                        self.y_history.append(hand[8].y)
+                        if len(self.y_history) > 3:
+                            self.y_history.pop(0)
+                        current_y = sum(self.y_history) / len(self.y_history)
                         
                         if self.volume_anchor_y is None:
                             self.volume_anchor_y = current_y
@@ -236,7 +250,6 @@ class GestureController:
 
                         if abs(displacement) > self.volume_threshold:
                             if self._can_execute_volume():
-                                
                                 if displacement > 0:
                                     pyautogui.press('volumeup')
                                 else:
@@ -247,7 +260,13 @@ class GestureController:
                         
                         return "Modo Volume"
                     
-                    self.volume_anchor_y = None
+                    # Se saiu do gesto ou falhou temporariamente, limpa os contadores de tolerância de forma gradual
+                    if self.volume_pose_counter > 0:
+                        self.volume_pose_counter -= 1
+                    if self.volume_pose_counter == 0:
+                        self.volume_anchor_y = None
+                        self.y_history.clear()
+                        
                     return "Modo Multimedia"
                 
                 # --- MODO VOZ ---
