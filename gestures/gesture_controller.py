@@ -24,7 +24,7 @@ class GestureController:
         
         # Volume
         self.volume_anchor_y = None   
-        self.volume_threshold = 0.001  
+        self.volume_threshold = 0.001
         
         # Ancoras para os movimentos do slide
         self.index_anchor_x = None
@@ -224,7 +224,7 @@ class GestureController:
                             pyautogui.press('volumemute')
                             return "AUDIO: MUTE/UNMUTE"
 
-                    # Ajuste do Volume por Arrastre Original
+                    # Ajuste do Volume 
                     elif fingers['index'] and not fingers['middle'] and not fingers['ring'] and not fingers['pinky']:
                         current_y = hand[8].y 
                         
@@ -236,7 +236,6 @@ class GestureController:
 
                         if abs(displacement) > self.volume_threshold:
                             if self._can_execute_volume():
-                                sensibilidade = 150.0  
                                 
                                 if displacement > 0:
                                     pyautogui.press('volumeup')
@@ -244,7 +243,7 @@ class GestureController:
                                     pyautogui.press('volumedown')
 
                                 self.volume_anchor_y = current_y
-                                
+                                return "A alterar volume"
                         
                         return "Modo Volume"
                     
