@@ -7,3 +7,5 @@ pyaudio
 word2number
 python-dotenv
 Pillow
+pycaw
+comtypes

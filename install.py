@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import subprocess
 import sys
 import os
@@ -26,7 +25,6 @@ class Installer:
 
         print("\n📦 Instalando dependencias (OpenCV, MediaPipe, Pycaw, SpeechRecognition, etc)...")
         try:
-            # Forca o ambiente do subset do PIP a rodar em UTF-8 para prevenir erros de caracteres
             env = os.environ.copy()
             env["PYTHONUTF8"] = "1"
 
@@ -43,20 +41,20 @@ class Installer:
     def verify(self):
         """Verifica se os imports criticos funcionam"""
         print("🔍 Verificando pacotes instalados...")
-        
-        # Forca o Python a atualizar a arvore de pacotes instalados no utilizador
+
         import site
         import importlib
         importlib.reload(site)
         
-        # Adicionados pycaw e comtypes para o controlo de volume real do Windows
         packages = {
             'opencv-python': 'cv2',
             'mediapipe': 'mediapipe',
             'SpeechRecognition': 'speech_recognition',
             'pyaudio': 'pyaudio',
             'word2number': 'word2number',
-            'Pillow': 'PIL'
+            'Pillow': 'PIL' ,
+            'pycaw': 'pycaw',
+            'comtypes': 'comtypes'
         }
         
         all_ok = True
