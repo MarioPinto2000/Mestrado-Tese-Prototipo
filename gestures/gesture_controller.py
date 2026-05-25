@@ -132,145 +132,177 @@ class GestureController:
         if not self.command_mode_active and not self.zoom_mode_active and not self.multimedia_active and not self.voice_mode_active:
             return "A espera do modo."
 
-        for i, label in enumerate(labels):
+        # Encontra o índice da mão direita de forma robusta, ignorando a sua posição X na imagem
+        right_hand_idx = None
+        for idx, label in enumerate(labels):
             if label == "Right":
-                hand = hands_landmarks[i]
-                fingers = analyzer.count_extended_fingers(hand)
+                right_hand_idx = idx
+                break
+
+        if right_hand_idx is None:
+            return "Mao Direita nao detetada"
+
+        # Extrai os dados da mão direita com garantia de alvo correto
+        hand = hands_landmarks[right_hand_idx]
+        fingers = analyzer.count_extended_fingers(hand)
+        
+        dedos_principais = [fingers['index'], fingers['middle'], fingers['ring'], fingers['pinky']]
+        total_sem_polegar = sum(dedos_principais)
+        
+        # --- MODO NAVEGAÇÃO ---
+        if self.command_mode_active:
+            if total_sem_polegar == 1 and fingers['index']:
+                ponta_atual_x = hand[8].x 
                 
-                dedos_principais = [fingers['index'], fingers['middle'], fingers['ring'], fingers['pinky']]
-                total_sem_polegar = sum(dedos_principais)
+                if self.index_anchor_x is None: 
+                    self.index_anchor_x = ponta_atual_x
+                    return "Indicador detetado."
                 
-                # --- MODO NAVEGAÇÃO ---
-                if self.command_mode_active:
-                    if total_sem_polegar == 1:
-                        if fingers['index']:
-                            ponta_atual_x = hand[8].x 
-                            
-                            if self.index_anchor_x is None: 
-                                self.index_anchor_x = ponta_atual_x
-                                return "Indicador detetado."
-                            
-                            deslocamento = ponta_atual_x - self.index_anchor_x
-                            self.index_anchor_x = ponta_atual_x
-                            
-                            cooldown_pronto, _ = self.get_cooldown_status()
-                            if not cooldown_pronto:
-                                return "Cooldown..."
-                            
-                            threshold_movimento = 0.04 
-                            
-                            if deslocamento < -threshold_movimento:
-                                if self._can_execute():
-                                    pyautogui.press('right')
-                                    return "RASTREIO: Proximo >>"
-                            elif deslocamento > threshold_movimento:
-                                if self._can_execute():
-                                    pyautogui.press('left')
-                                    return "RASTREIO: Anterior <<"
-                                    
-                            return "A seguir indicador."
+                # Deslocamento acumulado em relação à âncora inicial fixa
+                deslocamento = ponta_atual_x - self.index_anchor_x
+                
+                cooldown_pronto, _ = self.get_cooldown_status()
+                if not cooldown_pronto:
+                    # Atualiza a âncora continuamente durante o cooldown para preparar o próximo Swipe
+                    self.index_anchor_x = ponta_atual_x
+                    return "Cooldown..."
+                
+                # Limiar dinâmico para evitar disparos acidentais
+                threshold_movimento = 0.05 
+                
+                if deslocamento < -threshold_movimento:
+                    if self._can_execute():
+                        pyautogui.press('right')
+                        self.index_anchor_x = ponta_atual_x  # Faz reset à âncora após execução bem-sucedida
+                        return "RASTREIO: Proximo >>"
+                elif deslocamento > threshold_movimento:
+                    if self._can_execute():
+                        pyautogui.press('left')
+                        self.index_anchor_x = ponta_atual_x  # Faz reset à âncora após execução bem-sucedida
+                        return "RASTREIO: Anterior <<"
+                        
+                return "A seguir indicador."
+            
+            else:
+                # Se o utilizador fechou a mão ou abriu mais dedos, liberta a âncora para reiniciar o movimento
+                self.index_anchor_x = None
+                return "Modo Navegacao Ativo"
+        
+        # --- MODO ZOOM / POINTER ---
+        elif self.zoom_mode_active:
+            if fingers['index'] and fingers['middle'] and total_sem_polegar == 2:
+                self.laser_active = True
+                return "APONTADOR ATIVO"
+            else:
+                self.laser_active = False
+
+            dist_ok = analyzer.calculate_distance((hand[4].x, hand[4].y), (hand[8].x, hand[8].y))
+            if dist_ok < 0.10 and fingers['middle'] and fingers['pinky']:
+                if self._can_execute():
+                    pyautogui.hotkey('ctrl', 'alt', '0')
+                    return "RESET ZOOM"
+
+            abertos_total = sum(fingers.values())
+            mao_aberta, mao_fechada = abertos_total >= 4, abertos_total <= 1
+            
+            if self.prev_right_hand_closed and mao_aberta:
+                if self._can_execute():
+                    for _ in range(3): pyautogui.hotkey('ctrl', '+')
+                    self.prev_right_hand_closed = False 
+                    return "Zoom In"
+            elif self.prev_right_hand_open and mao_fechada:
+                if self._can_execute():
+                    for _ in range(3): pyautogui.hotkey('ctrl', '-')
+                    self.prev_right_hand_open = False 
+                    return "Zoom Out"
+
+            self.prev_right_hand_open = (abertos_total >= 4)
+            self.prev_right_hand_closed = (abertos_total <= 1)
+            return "Modo Focus"
+        
+        # --- MODO MULTIMÉDIA ---
+        elif self.multimedia_active:
+            dist_ok = analyzer.calculate_distance((hand[4].x, hand[4].y), (hand[8].x, hand[8].y))
+            
+            if dist_ok < 0.05 and fingers['middle'] and fingers['ring'] and fingers['pinky']:
+                self.volume_pose_counter = 0  
+                if self._can_execute(): 
+                    sw, sh = pyautogui.size()
+                    center_x, center_y = sw // 2, sh // 2
                     
-                    self.index_anchor_x = None
-                    return "..."
+                    import threading
+                    action_thread = threading.Thread(
+                        target=self._execute_multimedia_action, 
+                        args=(sw, sh, center_x, center_y),
+                        daemon=True
+                    )
+                    action_thread.start()
+                    return "PLAY/PAUSE..."
+
+            elif fingers['index'] and fingers['middle'] and not fingers['ring'] and not fingers['pinky']:
+                self.volume_pose_counter = 0
+                if self._can_execute(): 
+                    pyautogui.press('volumemute')
+                    self.last_mute_time = time.time()
+                    return "AUDIO: MUTE/UNMUTE"
+
+            # --- AJUSTE DE VOLUME ---
+            else:
+                if hasattr(self, 'last_mute_time') and (time.time() - self.last_mute_time < 2.0):
+                    self.volume_pose_counter = 0
+                    self.volume_anchor_y = None
+                    self.y_history.clear()
+                    return "Mute Ativo (Bloqueio UI)"
+
+                ponta_x, ponta_y = hand[8].x, hand[8].y
+                base_x, base_y = hand[5].x, hand[5].y
                 
-                # --- MODO ZOOM / POINTER ---
-                elif self.zoom_mode_active:
-                    if fingers['index'] and fingers['middle'] and total_sem_polegar == 2:
-                        self.laser_active = True
-                        return "APONTADOR ATIVO"
+                dist_indicador = ((ponta_x - base_x)**2 + (ponta_y - base_y)**2)**0.5
+                indicador_esticado = dist_indicador > 0.06
+                outros_recolhidos = not fingers['middle'] and not fingers['ring'] and not fingers['pinky']
+
+                if (indicador_esticado and outros_recolhidos) or (self.volume_pose_counter > 0):
+                    if indicador_esticado and outros_recolhidos:
+                        self.volume_pose_counter = min(10, self.volume_pose_counter + 1)
                     else:
-                        self.laser_active = False
-
-                    dist_ok = analyzer.calculate_distance((hand[4].x, hand[4].y), (hand[8].x, hand[8].y))
-                    if dist_ok < 0.10 and fingers['middle'] and fingers['pinky']:
-                        if self._can_execute():
-                            pyautogui.hotkey('ctrl', 'alt', '0')
-                            return "RESET ZOOM"
-
-                    abertos_total = sum(fingers.values())
-                    mao_aberta, mao_fechada = abertos_total >= 4, abertos_total <= 1
-                    
-                    if self.prev_right_hand_closed and mao_aberta:
-                        if self._can_execute():
-                            for _ in range(3): pyautogui.hotkey('ctrl', '+')
-                            self.prev_right_hand_closed = False 
-                            return "Zoom In"
-                    elif self.prev_right_hand_open and mao_fechada:
-                        if self._can_execute():
-                            for _ in range(3): pyautogui.hotkey('ctrl', '-')
-                            self.prev_right_hand_open = False 
-                            return "Zoom Out"
-
-                    self.prev_right_hand_open = (abertos_total >= 4)
-                    self.prev_right_hand_closed = (abertos_total <= 1)
-                    return "Modo Focus"
-                
-                # --- MODO MULTIMÉDIA ---
-                elif self.multimedia_active:
-                    dist_ok = analyzer.calculate_distance((hand[4].x, hand[4].y), (hand[8].x, hand[8].y))
-                    
-                    if dist_ok < 0.05 and fingers['middle'] and fingers['ring'] and fingers['pinky']:
-                        self.volume_pose_counter = 0  # Reseta o contador de volume se mudar de gesto
-                        if self._can_execute(): 
-                            sw, sh = pyautogui.size()
-                            center_x, center_y = sw // 2, sh // 2
-                            
-                            import threading
-                            action_thread = threading.Thread(
-                                target=self._execute_multimedia_action, 
-                                args=(sw, sh, center_x, center_y),
-                                daemon=True
-                            )
-                            action_thread.start()
-                            return "PLAY/PAUSE..."
-
-                    elif fingers['index'] and fingers['middle'] and not fingers['ring'] and not fingers['pinky']:
-                        self.volume_pose_counter = 0
-                        if self._can_execute(): 
-                            pyautogui.press('volumemute')
-                            return "AUDIO: MUTE/UNMUTE"
-
-                    # --- AJUSTE DE VOLUME ---
-                    elif fingers['index'] and not fingers['middle'] and not fingers['ring'] and not fingers['pinky']:
-                        self.volume_pose_counter += 1
-                        if self.volume_pose_counter < 3:
-                            return "A validar gesto de Volume..."
-
-                        # Filtro de Suavização (Média Móvel): Remove o ruído
-                        self.y_history.append(hand[8].y)
-                        if len(self.y_history) > 3:
-                            self.y_history.pop(0)
-                        current_y = sum(self.y_history) / len(self.y_history)
-                        
-                        if self.volume_anchor_y is None:
-                            self.volume_anchor_y = current_y
-                            return "Volume Pronto"
-
-                        displacement = self.volume_anchor_y - current_y 
-
-                        if abs(displacement) > self.volume_threshold:
-                            if self._can_execute_volume():
-                                if displacement > 0:
-                                    pyautogui.press('volumeup')
-                                else:
-                                    pyautogui.press('volumedown')
-
-                                self.volume_anchor_y = current_y
-                                return "A alterar volume"
-                        
-                        return "Modo Volume"
-                    
-                    # Se saiu do gesto ou falhou temporariamente, limpa os contadores de tolerância de forma gradual
-                    if self.volume_pose_counter > 0:
                         self.volume_pose_counter -= 1
-                    if self.volume_pose_counter == 0:
-                        self.volume_anchor_y = None
-                        self.y_history.clear()
-                        
-                    return "Modo Multimedia"
+
+                    self.y_history.append(hand[8].y)
+                    if len(self.y_history) > 5:
+                        self.y_history.pop(0)
+                    
+                    current_y = sum(self.y_history) / len(self.y_history)
+
+                    if self.volume_pose_counter < 3 and self.volume_anchor_y is None:
+                        self.volume_anchor_y = current_y
+                        return "A validar gesto de Volume..."
+                    
+                    if self.volume_anchor_y is None:
+                        self.volume_anchor_y = current_y
+                        return "Volume Pronto"
+
+                    displacement = self.volume_anchor_y - current_y 
+
+                    if abs(displacement) > self.volume_threshold:
+                        if self._can_execute_volume():
+                            if displacement > 0:
+                                pyautogui.press('volumeup')
+                            else:
+                                pyautogui.press('volumedown')
+
+                            self.volume_anchor_y = self.volume_anchor_y - (displacement * 0.7)
+                            return "A alterar volume"
+                    
+                    return "Modo Volume"
                 
-                # --- MODO VOZ ---
-                elif self.voice_mode_active:
-                    return "Modo Voz Ativo"
-    
-        return "Mao Direita nao detetada"
+                if self.volume_pose_counter == 0:
+                    self.volume_anchor_y = None
+                    self.y_history.clear()
+                    
+                return "Modo Multimedia"
+        
+        # --- MODO VOZ ---
+        elif self.voice_mode_active:
+            return "Modo Voz Ativo"
+
+        return "Modo Desconhecido"
