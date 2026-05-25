@@ -19,23 +19,29 @@ show_mute_overlay = False
 status_voz_hud = "Status de voz: A aguardar..."
 ultima_detecao = "Voz detectada: ---"
 
-def draw_vertical_volume_bar(frame, volume):
-    """Desenha a barra de volume vertical à direita."""
+def draw_horizontal_volume_bar(frame, volume):
+    """Desenha a barra de volume horizontal na parte inferior da câmara."""
     h, w, _ = frame.shape
-    bar_width = 30
-    bar_height = 200
-    bar_x = w - 50
-    bar_y = (h - bar_height) // 2
+    bar_width = 300   # Comprimento da barra
+    bar_height = 25   # Altura da barra
+    
+    # Posição: centralizada horizontalmente e perto da margem inferior
+    bar_x = (w - bar_width) // 2
+    bar_y = h - 50
     
     # Desenha o fundo da barra (Cinza Escuro)
     cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (50, 50, 50), -1)
     
-    # Desenha o preenchimento (Verde)
-    fill_height = int((min(volume, 100) / 100) * bar_height)
-    cv2.rectangle(frame, (bar_x, bar_y + bar_height - fill_height), (bar_x + bar_width, bar_y + bar_height), (0, 255, 0), -1)
+    # Desenha o preenchimento (Verde) com base na largura
+    fill_width = int((min(volume, 100) / 100) * bar_width)
+    cv2.rectangle(frame, (bar_x, bar_y), (bar_x + fill_width, bar_y + bar_height), (0, 255, 0), -1)
     
-    # Texto do valor percentual
-    cv2.putText(frame, f"{int(volume)}%", (bar_x - 5, bar_y + bar_height + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    # Desenha uma borda branca fina para destacar
+    cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (255, 255, 255), 1)
+    
+    # Texto do valor percentual à direita da barra
+    cv2.putText(frame, f"Volume: {int(volume)}%", (bar_x + bar_width + 10, bar_y + 18), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
 def main():
     # ADICIONADO: global para permitir alterar estas variáveis dentro do ciclo while
@@ -126,10 +132,9 @@ def main():
             
             vol = audio.get_volume()
             
-            # Verifica se o gesto está ativo para mostrar a barra vertical à direita
             if "A alterar volume" in status_text or "Modo Volume" in status_text:
                 if isinstance(vol, (int, float)): 
-                    draw_vertical_volume_bar(frame, vol)  
+                    draw_horizontal_volume_bar(frame, vol)  
         elif controller.voice_mode_active:
             current_mode_str = "VOZ"
             color_mode = (0, 255, 255)   
@@ -163,11 +168,10 @@ def main():
             cv2.putText(frame, status_voz_hud, (15, 435), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
             cv2.putText(frame, ultima_detecao, (15, 465), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
 
-        # LÓGICA DO OVERLAY DE MUTE (Permanecer visível por 1.5 segundos)
+        # LÓGICA DO OVERLAY DE MUTE (Permanecer visível por 2 segundos)
         if show_mute_overlay:
-            if time.time() - mute_start_time < 1.5:
-                # Desenha o texto "MUTE" a cinza (120, 120, 120) bem visível no centro (coordenadas x=240, y=260)
-                cv2.putText(frame, "MUTE", (240, 260), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (120, 120, 120), 4)
+            if time.time() - mute_start_time < 2:
+                cv2.putText(frame, "MUTE", (240, 260), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (0, 255, 0), 4)
             else:
                 show_mute_overlay = False
         

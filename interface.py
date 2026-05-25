@@ -114,7 +114,7 @@ class AppUI:
         txt.insert(tk.INSERT, "\nMÃO DIREITA → AÇÕES\n\n", "seccao")
         adicionar_item("• NAVEGAÇÃO", "Swipe semelhante ao movimento de virar a pagina de um livro com o dedo indicador:\n- Da direita para a esquerda → Próximo slide\n- Da esquerda para a direita → Slide Anterior")
         adicionar_item("• FOCUS", "Mão fechada abra a mão → Zoom +\nMão Aberta feche a mão → Zoom -\nGesto OK (ponta do indicador a tocar na ponta do polegar e dedos restantes esticados) → Reset do zoom")
-        adicionar_item("• MULTIMÉDIA", "Gesto OK (ponta do indicador a tocar na ponta do polegar e dedos restantes esticados) → Play / Pause\nIndicador e Médio esticados → Mute/Unmute\nIndicador esticado e a apontar para cima o sistema segue o movimento da mão.O movimento da mão para cima aumenta o volume e para baixo diminui")
+        adicionar_item("• MULTIMÉDIA", "Gesto OK (ponta do indicador a tocar na ponta do polegar e dedos restantes esticados) → Play / Pause\nIndicador e Médio esticados → Mute/Unmute\nIndicador esticado e a apontar para cima o sistema segue o movimento da mão.O movimento da mão para a direita aumenta o volume e para a esquerda diminui")
 
         txt.insert(tk.INSERT, "\nVOZ\n\n", "seccao")
         txt.insert(tk.INSERT, "Diga: 'Go to slide [número]' → Navegação para slide especifico\n\n", "normal")
