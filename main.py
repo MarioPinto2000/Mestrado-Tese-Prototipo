@@ -7,15 +7,39 @@ from gestures.hand_detector import HandDetector
 from gestures.hand_analyzer import HandAnalyzer
 from gestures.gesture_controller import GestureController
 from voice.voice_commands import VoiceController 
+from audio.audio_utils import AudioController
 
 pyautogui.PAUSE = 0
 pyautogui.FAILSAFE = False
 
+# Variáveis globais para o temporizador do MUTE
+mute_start_time = 0
+show_mute_overlay = False
+
 status_voz_hud = "Status de voz: A aguardar..."
 ultima_detecao = "Voz detectada: ---"
 
+def draw_vertical_volume_bar(frame, volume):
+    """Desenha a barra de volume vertical à direita."""
+    h, w, _ = frame.shape
+    bar_width = 30
+    bar_height = 200
+    bar_x = w - 50
+    bar_y = (h - bar_height) // 2
+    
+    # Desenha o fundo da barra (Cinza Escuro)
+    cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (50, 50, 50), -1)
+    
+    # Desenha o preenchimento (Verde)
+    fill_height = int((min(volume, 100) / 100) * bar_height)
+    cv2.rectangle(frame, (bar_x, bar_y + bar_height - fill_height), (bar_x + bar_width, bar_y + bar_height), (0, 255, 0), -1)
+    
+    # Texto do valor percentual
+    cv2.putText(frame, f"{int(volume)}%", (bar_x - 5, bar_y + bar_height + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
 def main():
-    global status_voz_hud, ultima_detecao
+    # ADICIONADO: global para permitir alterar estas variáveis dentro do ciclo while
+    global status_voz_hud, ultima_detecao, mute_start_time, show_mute_overlay
     
     detector = HandDetector(max_num_hands=2)
     analyzer = HandAnalyzer()
@@ -25,6 +49,9 @@ def main():
     screen_width, screen_height = pyautogui.size()
     frame_margin = 100 
     cap = cv2.VideoCapture(0)
+    
+    # Inicialização do controlador de áudio nativo
+    audio = AudioController()
     
     while True:
         ret, frame = cap.read()
@@ -63,8 +90,14 @@ def main():
                     status_text = "Comando de voz em escuta"
                     color_action = (0, 255, 255) 
                 else:
+                    # CORRIGIDO: O comando da mão direita é lido centralizadamente aqui
                     status_text = controller.get_right_hand_command(labels, hands_landmarks, analyzer)
                     color_action = (0, 255, 0) 
+                    
+                    # CORRIGIDO: Ativação do overlay do Mute colocada no local lógico correto
+                    if "AUDIO: MUTE/UNMUTE" in status_text:
+                        mute_start_time = time.time()
+                        show_mute_overlay = True
             
             if controller.zoom_mode_active and controller.laser_active:
                 for i, label in enumerate(labels):
@@ -89,7 +122,14 @@ def main():
             color_mode = (50, 255, 50)   
         elif controller.multimedia_active:
             current_mode_str = "MULTIMEDIA"
-            color_mode = (255, 50, 255)  
+            color_mode = (255, 50, 255)
+            
+            vol = audio.get_volume()
+            
+            # Verifica se o gesto está ativo para mostrar a barra vertical à direita
+            if "A alterar volume" in status_text or "Modo Volume" in status_text:
+                if isinstance(vol, (int, float)): 
+                    draw_vertical_volume_bar(frame, vol)  
         elif controller.voice_mode_active:
             current_mode_str = "VOZ"
             color_mode = (0, 255, 255)   
@@ -104,7 +144,6 @@ def main():
         is_ready, cd_time_left = controller.get_cooldown_status()
         cd_text = "PRONTO" if is_ready else f"ESPERE: {cd_time_left:.1f}s"
         cd_color = (0, 255, 0) if is_ready else (0, 165, 255)
-
 
         # DESENHO DO HUD SUPERIOR
         cv2.rectangle(frame, (0, 0), (640, 60), (20, 20, 20), -1)
@@ -124,6 +163,14 @@ def main():
             cv2.putText(frame, status_voz_hud, (15, 435), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
             cv2.putText(frame, ultima_detecao, (15, 465), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
 
+        # LÓGICA DO OVERLAY DE MUTE (Permanecer visível por 1.5 segundos)
+        if show_mute_overlay:
+            if time.time() - mute_start_time < 1.5:
+                # Desenha o texto "MUTE" a cinza (120, 120, 120) bem visível no centro (coordenadas x=240, y=260)
+                cv2.putText(frame, "MUTE", (240, 260), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (120, 120, 120), 4)
+            else:
+                show_mute_overlay = False
+        
         cv2.imshow("Controle de Apresentacao v1.0", frame)
         
         if cv2.waitKey(1) & 0xFF == ord('q'): break
