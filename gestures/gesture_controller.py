@@ -188,9 +188,9 @@ class GestureController:
                 self.index_anchor_x = None
                 return "Modo Navegacao Ativo"
         
-        # --- MODO ZOOM / POINTER ---
+        # --- MODO ZOOM / POINTER / FOCUS ---
         elif self.zoom_mode_active:
-            if fingers['index'] and fingers['middle'] and total_sem_polegar == 2:
+            if fingers['index'] and total_sem_polegar == 1:
                 self.laser_active = True
                 return "APONTADOR ATIVO"
             else:
