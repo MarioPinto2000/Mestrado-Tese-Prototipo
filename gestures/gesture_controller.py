@@ -173,18 +173,17 @@ class GestureController:
                 if deslocamento < -threshold_movimento:
                     if self._can_execute():
                         pyautogui.press('right')
-                        self.index_anchor_x = ponta_atual_x  # Faz reset à âncora após execução bem-sucedida
+                        self.index_anchor_x = ponta_atual_x  # Faz reset 
                         return "RASTREIO: Proximo >>"
                 elif deslocamento > threshold_movimento:
                     if self._can_execute():
                         pyautogui.press('left')
-                        self.index_anchor_x = ponta_atual_x  # Faz reset à âncora após execução bem-sucedida
+                        self.index_anchor_x = ponta_atual_x  # Faz reset 
                         return "RASTREIO: Anterior <<"
                         
                 return "A seguir indicador."
             
             else:
-                # Se o utilizador fechou a mão ou abriu mais dedos, liberta a âncora para reiniciar o movimento
                 self.index_anchor_x = None
                 return "Modo Navegacao Ativo"
         

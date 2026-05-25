@@ -109,12 +109,12 @@ class AppUI:
         adicionar_item("• MODO NAVEGAÇÃO", "Estique apenas o dedo indicador.")
         adicionar_item("• MODO ZOOM / LASER", "Estique o indicador e o dedo médio.")
         adicionar_item("• MODO MULTIMÉDIA", "Estique indicador, médio e anelar.")
-        adicionar_item("• MODO VOZ", "Estique o indicador e o mindinho (gesto rock).")
+        adicionar_item("• MODO VOZ", "Estique o indicador, médio, anelar e mindinho .")
 
         txt.insert(tk.INSERT, "\nMÃO DIREITA → AÇÕES\n\n", "seccao")
-        adicionar_item("• NAVEGAÇÃO", "Swipe com:\n- Indicador → Próximo\n- Mindinho → Anterior")
-        adicionar_item("• ZOOM", "Mão fechada abra a mão → Zoom +\nAberta feche a mão → Zoom -\nGesto OK (ponta do indicador a tocar na ponta do polegar e dedos restantes esticados) → Reset")
-        adicionar_item("• MULTIMÉDIA", "Gesto OK (ponta do indicador a tocar na ponta do polegar e dedos restantes esticados) → Play / Pause\nIndicador, Médio e Anelar para cima  → Mute/Unmute\nIndicador para cima → Vol +\nIndicador para baixo → Vol -")
+        adicionar_item("• NAVEGAÇÃO", "Swipe semelhante ao movimento de virar a pagina de um livro com o dedo indicador:\n- Da direita para a esquerda → Próximo slide\n- Da esquerda para a direita → Slide Anterior")
+        adicionar_item("• FOCUS", "Mão fechada abra a mão → Zoom +\nMão Aberta feche a mão → Zoom -\nGesto OK (ponta do indicador a tocar na ponta do polegar e dedos restantes esticados) → Reset do zoom")
+        adicionar_item("• MULTIMÉDIA", "Gesto OK (ponta do indicador a tocar na ponta do polegar e dedos restantes esticados) → Play / Pause\nIndicador e Médio esticados → Mute/Unmute\nIndicador esticado e a apontar para cima o sistema segue o movimento da mão.O movimento da mão para cima aumenta o volume e para baixo diminui")
 
         txt.insert(tk.INSERT, "\nVOZ\n\n", "seccao")
         txt.insert(tk.INSERT, "Diga: 'Go to slide [número]' → Navegação para slide especifico\n\n", "normal")
