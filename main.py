@@ -12,40 +12,29 @@ from audio.audio_utils import AudioController
 pyautogui.PAUSE = 0
 pyautogui.FAILSAFE = False
 
-# Variáveis globais para o temporizador do MUTE
-mute_start_time = 0
-show_mute_overlay = False
-
 status_voz_hud = "Status de voz: A aguardar..."
 ultima_detecao = "Voz detectada: ---"
 
 def draw_horizontal_volume_bar(frame, volume):
-    """Desenha a barra de volume horizontal na parte inferior da câmara."""
     h, w, _ = frame.shape
-    bar_width = 300   # Comprimento da barra
-    bar_height = 25   # Altura da barra
-    
-    # Posição: centralizada horizontalmente e perto da margem inferior
+    bar_width = 300   
+    bar_height = 25   
+
     bar_x = (w - bar_width) // 2
     bar_y = h - 50
-    
-    # Desenha o fundo da barra (Cinza Escuro)
+
     cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (50, 50, 50), -1)
-    
-    # Desenha o preenchimento (Verde) com base na largura
+
     fill_width = int((min(volume, 100) / 100) * bar_width)
     cv2.rectangle(frame, (bar_x, bar_y), (bar_x + fill_width, bar_y + bar_height), (0, 255, 0), -1)
-    
-    # Desenha uma borda branca fina para destacar
+
     cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (255, 255, 255), 1)
-    
-    # Texto do valor percentual à direita da barra
+
     cv2.putText(frame, f"Volume: {int(volume)}%", (bar_x + bar_width + 10, bar_y + 18), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
 def main():
-    # ADICIONADO: global para permitir alterar estas variáveis dentro do ciclo while
-    global status_voz_hud, ultima_detecao, mute_start_time, show_mute_overlay
+    global status_voz_hud, ultima_detecao
     
     detector = HandDetector(max_num_hands=2)
     analyzer = HandAnalyzer()
@@ -55,8 +44,7 @@ def main():
     screen_width, screen_height = pyautogui.size()
     frame_margin = 100 
     cap = cv2.VideoCapture(0)
-    
-    # Inicialização do controlador de áudio nativo
+
     audio = AudioController()
     
     while True:
@@ -96,14 +84,8 @@ def main():
                     status_text = "Comando de voz em escuta"
                     color_action = (0, 255, 255) 
                 else:
-                    # CORRIGIDO: O comando da mão direita é lido centralizadamente aqui
                     status_text = controller.get_right_hand_command(labels, hands_landmarks, analyzer)
-                    color_action = (0, 255, 0) 
-                    
-                    # CORRIGIDO: Ativação do overlay do Mute colocada no local lógico correto
-                    if "AUDIO: MUTE/UNMUTE" in status_text:
-                        mute_start_time = time.time()
-                        show_mute_overlay = True
+                    color_action = (0, 255, 0)
             
             if controller.zoom_mode_active and controller.laser_active:
                 for i, label in enumerate(labels):
@@ -130,9 +112,8 @@ def main():
             current_mode_str = "MULTIMEDIA"
             color_mode = (255, 50, 255)
             
-            vol = audio.get_volume()
-            
-            if "A alterar volume" in status_text or "Modo Volume" in status_text:
+            if controller.show_volume_bar:
+                vol = audio.get_volume()
                 if isinstance(vol, (int, float)): 
                     draw_horizontal_volume_bar(frame, vol)  
         elif controller.voice_mode_active:
@@ -168,12 +149,8 @@ def main():
             cv2.putText(frame, status_voz_hud, (15, 435), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
             cv2.putText(frame, ultima_detecao, (15, 465), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
 
-        # LÓGICA DO OVERLAY DE MUTE (Permanecer visível por 2 segundos)
-        if show_mute_overlay:
-            if time.time() - mute_start_time < 2:
-                cv2.putText(frame, "MUTE", (240, 260), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (0, 255, 0), 4)
-            else:
-                show_mute_overlay = False
+        if controller.show_mute_overlay:
+            cv2.putText(frame, "MUTE", (240, 260), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (0, 255, 0), 4)
         
         cv2.imshow("Controle de Apresentacao v1.0", frame)
         
