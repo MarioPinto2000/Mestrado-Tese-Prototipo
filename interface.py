@@ -125,9 +125,7 @@ class AppUI:
             "definindo o tipo de comando que o utilizador pretende executar.\n\n"
             "Após a seleção do modo, a mão direita é responsável por realizar o gesto "
             "específico que executa a ação correspondente.\n\n"
-            "Os comandos devem ser realizados com as duas mãos em simultâneo, "
-            "garantindo assim uma deteção correta e evitando ativações indesejadas.\n\n"
-            "DICA: Aguarde cerca de 3 segundos entre gestos para evitar múltiplos comandos.\n\n"
+            "DICA: Aguarde cerca de 2 segundos entre gestos para evitar múltiplos comandos.\n\n"
             "NOTA: Para fechar o Comando gestual pressione 'q' no teclado\n\n",
             "normal"
         )
