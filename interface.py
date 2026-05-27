@@ -1,16 +1,21 @@
 import tkinter as tk
 from tkinter import scrolledtext
+from tkinter import ttk  # Necessário para as Comboboxes
 import threading
 from main import main
+
+# Importar as lógicas de listagem do hardware
+from select_camara import listar_camaras
+from select_microfone import listar_microfones
 
 class AppUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Controlo Gestual PowerPoint v1.0")
 
-        width, height = 400, 250
+        # Janela ligeiramente maior para acomodar as novas opções confortavelmente
+        width, height = 450, 420
         self.center_window(self.root, width, height)
-        
         self.root.configure(bg="#1e1e2e")
 
         tk.Label(
@@ -19,8 +24,22 @@ class AppUI:
             font=("Segoe UI", 16, "bold"),
             bg="#1e1e2e",
             fg="#89b4fa"
-        ).pack(pady=20)
+        ).pack(pady=15)
 
+        # --- SELEÇÃO DE CÂMARA ---
+        tk.Label(root, text="Selecione a Câmara:", font=("Segoe UI", 10), bg="#1e1e2e", fg="#cdd6f4").pack(pady=2)
+        self.combo_camara = ttk.Combobox(root, width=35, state="readonly")
+        self.combo_camara.pack(pady=5)
+
+        # --- SELEÇÃO DE MICROFONE ---
+        tk.Label(root, text="Selecione o Microfone:", font=("Segoe UI", 10), bg="#1e1e2e", fg="#cdd6f4").pack(pady=2)
+        self.combo_microfone = ttk.Combobox(root, width=35, state="readonly")
+        self.combo_microfone.pack(pady=5)
+
+        # Popular as Comboboxes com os dispositivos de hardware reais
+        self.carregar_dispositivos()
+
+        # --- BOTÕES ---
         self.btn_manual = tk.Button(
             root,
             text="MANUAL DE GESTOS",
@@ -47,38 +66,47 @@ class AppUI:
         )
         self.btn_start.pack(pady=10)
 
+    def carregar_dispositivos(self):
+        # Configurar listagem de Câmaras
+        camaras_disponiveis = listar_camaras()
+        if camaras_disponiveis:
+            self.combo_camara['values'] = [f"Câmara ID: {idx}" for idx in camaras_disponiveis]
+            self.combo_camara.current(0) # Seleciona a primeira por padrão
+        else:
+            self.combo_camara['values'] = ["Nenhuma câmara detetada"]
+            self.combo_camara.current(0)
+
+        # Configurar listagem de Microfones
+        mics_disponiveis = listar_microfones()
+        if mics_disponiveis:
+            # Armazena a lista de tuplos para mapear o índice correto depois
+            self.lista_mics_raw = mics_disponiveis
+            self.combo_microfone['values'] = [f"[{item[0]}] {item[1]}" for item in mics_disponiveis]
+            self.combo_microfone.current(0)
+        else:
+            self.lista_mics_raw = []
+            self.combo_microfone['values'] = ["Nenhum microfone detetado"]
+            self.combo_microfone.current(0)
+
     def center_window(self, win, w, h):
         screen_width = win.winfo_screenwidth()
         screen_height = win.winfo_screenheight()
-        
         x = (screen_width // 2) - (w // 2)
         y = (screen_height // 2) - (h // 2)
-        
         win.geometry(f'{w}x{h}+{x}+{y}')
 
     def open_manual(self):
         manual_win = tk.Toplevel(self.root)
         manual_win.title("Manual de Gestos")
-        
-        # Centrar a janela do manual
         self.center_window(manual_win, 750, 750)
-        
         manual_win.configure(bg="#1e1e2e")
 
         txt = scrolledtext.ScrolledText(
-            manual_win,
-            bg="#1e1e2e",
-            fg="#cdd6f4",
-            font=("Segoe UI", 11),
-            padx=25,
-            pady=25,
-            insertbackground="white",
-            bd=0,
-            wrap=tk.WORD
+            manual_win, bg="#1e1e2e", fg="#cdd6f4", font=("Segoe UI", 11),
+            padx=25, pady=25, insertbackground="white", bd=0, wrap=tk.WORD
         )
         txt.pack(fill=tk.BOTH, expand=True)
 
-        # Estilos
         txt.tag_configure("titulo", font=("Segoe UI", 18, "bold"), foreground="#89b4fa", justify="center")
         txt.tag_configure("seccao", font=("Segoe UI", 14, "bold"), foreground="#a6e3a1")
         txt.tag_configure("gesto", font=("Segoe UI", 11, "bold"), foreground="#fab387")
@@ -89,7 +117,6 @@ class AppUI:
             txt.insert(tk.INSERT, f"{desc}\n\n", "normal")
 
         txt.insert(tk.INSERT, "MANUAL DE GESTOS\n\n", "titulo")
-
         txt.insert(tk.INSERT, "INTRODUÇÃO\n\n", "seccao")
         txt.insert(
             tk.INSERT,
@@ -112,20 +139,34 @@ class AppUI:
         adicionar_item("• MODO VOZ", "Estique o indicador, médio, anelar e mindinho .")
 
         txt.insert(tk.INSERT, "\nMÃO DIREITA → AÇÕES\n\n", "seccao")
-        adicionar_item("• NAVEGAÇÃO", "Swipe semelhante ao movimento de virar a pagina de um livro com o dedo indicador:\n- Da direita para a esquerda → Próximo slide\n- Da esquerda para a direita → Slide Anterior")
-        adicionar_item("• FOCUS", "Mão fechada abra a mão → Zoom +\nMão Aberta feche a mão → Zoom -\nGesto OK (ponta do indicador a tocar na ponta do polegar e dedos restantes esticados) → Reset do zoom")
-        adicionar_item("• MULTIMÉDIA", "Gesto OK (ponta do indicador a tocar na ponta do polegar e dedos restantes esticados) → Play / Pause\nIndicador e Médio esticados → Mute/Unmute\nIndicador esticado e a apontar para cima o sistema segue o movimento da mão.O movimento da mão para a direita aumenta o volume e para a esquerda diminui")
+        adicionar_item("• NAVEGAÇÃO", "Swipe em espelho com a mão direita:\n- Da direita para a esquerda → Próximo slide\n- Da esquerda para a direita → Slide Anterior")
+        adicionar_item("• FOCUS", "Mão fechada abra a mão → Zoom +\nMão Aberta feche a mão → Zoom -\nGesto OK → Reset do zoom")
+        adicionar_item("• MULTIMÉDIA", "Gesto OK → Play / Pause\nIndicador e Médio esticados → Mute/Unmute\nIndicador esticado para cima controla o volume através do deslocamento horizontal.")
 
         txt.insert(tk.INSERT, "\nVOZ\n\n", "seccao")
         txt.insert(tk.INSERT, "Diga: 'Go to slide [número]' → Navegação para slide especifico\n\n", "normal")
-
         txt.configure(state=tk.DISABLED)
 
     def run_main(self):
+        # 1. Obter índice da Câmara
+        texto_cam = self.combo_camara.get()
+        if "Câmara ID:" in texto_cam:
+            idx_camara = int(texto_cam.split(":")[-1].strip())
+        else:
+            idx_camara = 0 # Fallback padrão
+
+        # 2. Obter índice do Microfone
+        idx_combo_mic = self.combo_microfone.current()
+        if self.lista_mics_raw and idx_combo_mic >= 0:
+            idx_microfone = self.lista_mics_raw[idx_combo_mic][0]
+        else:
+            idx_microfone = None # Deixa o speech_recognition escolher o padrão do SO
+
         self.btn_start.config(state=tk.DISABLED, text="SISTEMA ATIVO", bg="#45475a")
         
+        # Passa as variáveis para a execução paralela
         def thread_wrapper():
-            main()
+            main(cam_index=idx_camara, mic_index=idx_microfone)
             self.root.after(0, self.reset_button)
 
         threading.Thread(target=thread_wrapper, daemon=True).start()

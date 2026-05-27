@@ -24,26 +24,29 @@ def draw_horizontal_volume_bar(frame, volume):
     bar_y = h - 50
 
     cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (50, 50, 50), -1)
-
     fill_width = int((min(volume, 100) / 100) * bar_width)
     cv2.rectangle(frame, (bar_x, bar_y), (bar_x + fill_width, bar_y + bar_height), (0, 255, 0), -1)
-
     cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (255, 255, 255), 1)
 
     cv2.putText(frame, f"Volume: {int(volume)}%", (bar_x + bar_width + 10, bar_y + 18), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
-def main():
+# Modificado para receber os dispositivos escolhidos na UI
+def main(cam_index=0, mic_index=None):
     global status_voz_hud, ultima_detecao
     
     detector = HandDetector(max_num_hands=2)
     analyzer = HandAnalyzer()
     controller = GestureController()
-    voice = VoiceController()
+    
+    # Passa o índice do microfone para o controlador de voz
+    voice = VoiceController(mic_index=mic_index)
     
     screen_width, screen_height = pyautogui.size()
     frame_margin = 100 
-    cap = cv2.VideoCapture(0)
+    
+    # Inicia com a câmara selecionada dinamicamente
+    cap = cv2.VideoCapture(cam_index, cv2.CAP_DSHOW)
 
     audio = AudioController()
     
@@ -131,7 +134,7 @@ def main():
         cd_text = "PRONTO" if is_ready else f"ESPERE: {cd_time_left:.1f}s"
         cd_color = (0, 255, 0) if is_ready else (0, 165, 255)
 
-        # DESENHO DO HUD SUPERIOR
+        # HUD
         cv2.rectangle(frame, (0, 0), (640, 60), (20, 20, 20), -1)
         cv2.putText(frame, f"Modo: {current_mode_str}", (15, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color_mode, 2)
         if current_mode_str != "INATIVO":

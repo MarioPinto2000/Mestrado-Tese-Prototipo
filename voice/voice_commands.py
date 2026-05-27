@@ -1,12 +1,12 @@
 import speech_recognition as sr
 import pyautogui
 from word2number import w2n
-import threading
 
 class VoiceController:
-    def __init__(self):
+    # Modificado para aceitar o índice do microfone selecionado na interface
+    def __init__(self, mic_index=None):
         self.recognizer = sr.Recognizer()
-        self.mic = sr.Microphone()
+        self.mic = sr.Microphone(device_index=mic_index)
         self.is_listening = False 
 
     def listen_for_slide(self):
