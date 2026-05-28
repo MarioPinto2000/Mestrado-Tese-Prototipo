@@ -10,7 +10,7 @@ class AppUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Controlo Gestual PowerPoint v1.1")
-        self.pptx_path = None # Variável para armazenar o ficheiro escolhido
+        self.pptx_path = None 
 
         width, height = 450, 520 
         self.center_window(self.root, width, height)
@@ -94,6 +94,7 @@ class AppUI:
     def reset_button(self):
         self.btn_start.config(state=tk.NORMAL, text="INICIAR SISTEMA", bg="#a6e3a1")
 
+    # --- MANUAL ---
     def open_manual(self):
         manual_win = tk.Toplevel(self.root)
         manual_win.title("Manual de Gestos")
@@ -126,7 +127,10 @@ class AppUI:
             "específico que executa a ação correspondente.\n\n"
             "DICA: Aguarde cerca de 2 segundos entre gestos para evitar múltiplos comandos.\n\n"
             "NOTA: Para fechar o Comando gestual pressione 'q' no teclado\n\n",
-            "normal"
+            "normal",
+            "NOTA2: Ao criar a sua apresentação PowerPoint tenha em conta que irá aparecer\n\n",
+            "uma janela pequena com camara no canto superior direito."
+            
         )
 
         txt.insert(tk.INSERT, "MÃO ESQUERDA → SELEÇÃO DE MODOS\n\n", "seccao")
