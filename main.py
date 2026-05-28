@@ -3,6 +3,9 @@ import pyautogui
 import numpy as np
 import threading
 import time
+import subprocess  
+import os          
+
 from gestures.hand_detector import HandDetector
 from gestures.hand_analyzer import HandAnalyzer
 from gestures.gesture_controller import GestureController
@@ -31,9 +34,16 @@ def draw_horizontal_volume_bar(frame, volume):
     cv2.putText(frame, f"Volume: {int(volume)}%", (bar_x + bar_width + 10, bar_y + 18), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
-# Modificado para receber os dispositivos escolhidos na UI
-def main(cam_index=0, mic_index=None):
+def main(cam_index=0, mic_index=None, ppt_path=None):
     global status_voz_hud, ultima_detecao
+    
+    #--- ABRIR POWERPOINT em apresentacao ---
+    if ppt_path and os.path.exists(ppt_path):
+        print(f"A abrir apresentação: {ppt_path}")
+        caminho_formatado = os.path.normpath(ppt_path)
+        
+        subprocess.Popen(f'start powerpnt /s "{caminho_formatado}"', shell=True)
+        time.sleep(3)
     
     detector = HandDetector(max_num_hands=2)
     analyzer = HandAnalyzer()

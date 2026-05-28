@@ -6,7 +6,7 @@ from typing import List
 class GestureController:
     def __init__(self):
         # --- VARIÁVEIS PARA TOGGLE ---
-        self.mode_timeout = 15.0
+        self.mode_timeout = 20.0
         self.mode_activation_time = 0.0
         self.last_mode_change_time = 0.0
 

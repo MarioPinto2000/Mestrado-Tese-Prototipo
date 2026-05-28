@@ -1,99 +1,98 @@
 import tkinter as tk
-from tkinter import scrolledtext
-from tkinter import ttk  # Necessário para as Comboboxes
+from tkinter import scrolledtext, ttk, filedialog
 import threading
+import os
 from main import main
-
-# Importar as lógicas de listagem do hardware
 from select_camara import listar_camaras
 from select_microfone import listar_microfones
 
 class AppUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Controlo Gestual PowerPoint v1.0")
+        self.root.title("Controlo Gestual PowerPoint v1.1")
+        self.pptx_path = None # Variável para armazenar o ficheiro escolhido
 
-        # Janela ligeiramente maior para acomodar as novas opções confortavelmente
-        width, height = 450, 420
+        width, height = 450, 520 
         self.center_window(self.root, width, height)
         self.root.configure(bg="#1e1e2e")
 
-        tk.Label(
-            root,
-            text="MENU PRINCIPAL",
-            font=("Segoe UI", 16, "bold"),
-            bg="#1e1e2e",
-            fg="#89b4fa"
-        ).pack(pady=15)
+        tk.Label(root, text="SISTEMA DE APRESENTAÇÃO", font=("Segoe UI", 16, "bold"),
+                 bg="#1e1e2e", fg="#89b4fa").pack(pady=15)
 
-        # --- SELEÇÃO DE CÂMARA ---
-        tk.Label(root, text="Selecione a Câmara:", font=("Segoe UI", 10), bg="#1e1e2e", fg="#cdd6f4").pack(pady=2)
+        # --- SELEÇÃO DE HARDWARE ---
+        tk.Label(root, text="Câmara:", bg="#1e1e2e", fg="#cdd6f4").pack()
         self.combo_camara = ttk.Combobox(root, width=35, state="readonly")
         self.combo_camara.pack(pady=5)
 
-        # --- SELEÇÃO DE MICROFONE ---
-        tk.Label(root, text="Selecione o Microfone:", font=("Segoe UI", 10), bg="#1e1e2e", fg="#cdd6f4").pack(pady=2)
+        tk.Label(root, text="Microfone:", bg="#1e1e2e", fg="#cdd6f4").pack()
         self.combo_microfone = ttk.Combobox(root, width=35, state="readonly")
         self.combo_microfone.pack(pady=5)
 
-        # Popular as Comboboxes com os dispositivos de hardware reais
+        # --- SELEÇÃO DE FICHEIRO PPTX ---
+        tk.Label(root, text="Apresentação PowerPoint:", bg="#1e1e2e", fg="#cdd6f4").pack(pady=(10,0))
+        self.lbl_ficheiro = tk.Label(root, text="Nenhum ficheiro selecionado", 
+                                     bg="#1e1e2e", fg="#a6e3a1", font=("Segoe UI", 9, "italic"))
+        self.lbl_ficheiro.pack(pady=2)
+        
+        self.btn_file = tk.Button(root, text="ESCOLHER POWERPOINT", command=self.escolher_ficheiro,
+                                  bg="#cba6f7", font=("Segoe UI", 9, "bold"), width=20, relief="flat", cursor="hand2")
+        self.btn_file.pack(pady=5)
+
         self.carregar_dispositivos()
 
-        # --- BOTÕES ---
-        self.btn_manual = tk.Button(
-            root,
-            text="MANUAL DE GESTOS",
-            command=self.open_manual,
-            width=25,
-            height=2,
-            bg="#fab387",
-            font=("Segoe UI", 10, "bold"),
-            relief="flat",
-            cursor="hand2"
-        )
+        # --- BOTÕES DE EXECUÇÃO ---
+        self.btn_manual = tk.Button(root, text="MANUAL DE GESTOS", command=self.open_manual,
+                                    width=25, height=2, bg="#fab387", font=("Segoe UI", 10, "bold"), relief="flat", cursor="hand2")
         self.btn_manual.pack(pady=10)
 
-        self.btn_start = tk.Button(
-            root,
-            text="INICIAR SISTEMA",
-            command=self.run_main,
-            width=25,
-            height=2,
-            bg="#a6e3a1",
-            font=("Segoe UI", 10, "bold"),
-            relief="flat",
-            cursor="hand2"
-        )
+        self.btn_start = tk.Button(root, text="INICIAR SISTEMA", command=self.run_main,
+                                   width=25, height=2, bg="#a6e3a1", font=("Segoe UI", 10, "bold"), relief="flat", cursor="hand2")
         self.btn_start.pack(pady=10)
 
-    def carregar_dispositivos(self):
-        # Configurar listagem de Câmaras
-        camaras_disponiveis = listar_camaras()
-        if camaras_disponiveis:
-            self.combo_camara['values'] = [f"Câmara ID: {idx}" for idx in camaras_disponiveis]
-            self.combo_camara.current(0) # Seleciona a primeira por padrão
-        else:
-            self.combo_camara['values'] = ["Nenhuma câmara detetada"]
-            self.combo_camara.current(0)
+    def escolher_ficheiro(self):
+        filename = filedialog.askopenfilename(
+            title="Selecionar Apresentação",
+            filetypes=[("PowerPoint files", "*.pptx *.ppt")]
+        )
+        if filename:
+            self.pptx_path = filename
+            self.lbl_ficheiro.config(text=os.path.basename(filename))
 
-        # Configurar listagem de Microfones
-        mics_disponiveis = listar_microfones()
-        if mics_disponiveis:
-            # Armazena a lista de tuplos para mapear o índice correto depois
-            self.lista_mics_raw = mics_disponiveis
-            self.combo_microfone['values'] = [f"[{item[0]}] {item[1]}" for item in mics_disponiveis]
-            self.combo_microfone.current(0)
-        else:
-            self.lista_mics_raw = []
-            self.combo_microfone['values'] = ["Nenhum microfone detetado"]
-            self.combo_microfone.current(0)
+    def carregar_dispositivos(self):
+        camaras = listar_camaras()
+        self.combo_camara['values'] = [f"Câmara ID: {idx}" for idx in camaras] if camaras else ["Nenhuma detetada"]
+        self.combo_camara.current(0)
+
+        mics = listar_microfones()
+        self.lista_mics_raw = mics
+        self.combo_microfone['values'] = [f"[{m[0]}] {m[1]}" for m in mics] if mics else ["Nenhum detetado"]
+        self.combo_microfone.current(0)
 
     def center_window(self, win, w, h):
-        screen_width = win.winfo_screenwidth()
-        screen_height = win.winfo_screenheight()
-        x = (screen_width // 2) - (w // 2)
-        y = (screen_height // 2) - (h // 2)
+        x = (win.winfo_screenwidth() // 2) - (w // 2)
+        y = (win.winfo_screenheight() // 2) - (h // 2)
         win.geometry(f'{w}x{h}+{x}+{y}')
+
+    def run_main(self):
+        try:
+            cam_text = self.combo_camara.get()
+            idx_camara = int(cam_text.split(":")[-1].strip()) if "ID:" in cam_text else 0
+            
+            idx_combo_mic = self.combo_microfone.current()
+            idx_microfone = self.lista_mics_raw[idx_combo_mic][0] if self.lista_mics_raw else None
+        except:
+            idx_camara, idx_microfone = 0, None
+
+        self.btn_start.config(state=tk.DISABLED, text="SISTEMA ATIVO", bg="#45475a")
+        
+        def thread_wrapper():
+            main(cam_index=idx_camara, mic_index=idx_microfone, ppt_path=self.pptx_path)
+            self.root.after(0, self.reset_button)
+
+        threading.Thread(target=thread_wrapper, daemon=True).start()
+
+    def reset_button(self):
+        self.btn_start.config(state=tk.NORMAL, text="INICIAR SISTEMA", bg="#a6e3a1")
 
     def open_manual(self):
         manual_win = tk.Toplevel(self.root)
@@ -144,33 +143,6 @@ class AppUI:
         txt.insert(tk.INSERT, "\nVOZ\n\n", "seccao")
         txt.insert(tk.INSERT, "Diga: 'Go to slide [número]' → Navegação para slide especifico\n\n", "normal")
         txt.configure(state=tk.DISABLED)
-
-    def run_main(self):
-        # 1. Obter índice da Câmara
-        texto_cam = self.combo_camara.get()
-        if "Câmara ID:" in texto_cam:
-            idx_camara = int(texto_cam.split(":")[-1].strip())
-        else:
-            idx_camara = 0 # Fallback padrão
-
-        # 2. Obter índice do Microfone
-        idx_combo_mic = self.combo_microfone.current()
-        if self.lista_mics_raw and idx_combo_mic >= 0:
-            idx_microfone = self.lista_mics_raw[idx_combo_mic][0]
-        else:
-            idx_microfone = None # Deixa o speech_recognition escolher o padrão do SO
-
-        self.btn_start.config(state=tk.DISABLED, text="SISTEMA ATIVO", bg="#45475a")
-        
-        # Passa as variáveis para a execução paralela
-        def thread_wrapper():
-            main(cam_index=idx_camara, mic_index=idx_microfone)
-            self.root.after(0, self.reset_button)
-
-        threading.Thread(target=thread_wrapper, daemon=True).start()
-
-    def reset_button(self):
-        self.btn_start.config(state=tk.NORMAL, text="INICIAR SISTEMA", bg="#a6e3a1")
 
 if __name__ == "__main__":
     root = tk.Tk()
