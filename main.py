@@ -3,8 +3,8 @@ import pyautogui
 import numpy as np
 import threading
 import time
-import subprocess  
-import os          
+import subprocess  # Necessário para abrir o PowerPoint
+import os          # Necessário para verificar se o ficheiro existe
 
 from gestures.hand_detector import HandDetector
 from gestures.hand_analyzer import HandAnalyzer
@@ -20,28 +20,28 @@ ultima_detecao = "Voz detectada: ---"
 
 def draw_horizontal_volume_bar(frame, volume):
     h, w, _ = frame.shape
-    bar_width = 300   
-    bar_height = 25   
+    bar_width = 180   
+    bar_height = 15   
 
     bar_x = (w - bar_width) // 2
-    bar_y = h - 50
+    bar_y = h - 35
 
     cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (50, 50, 50), -1)
     fill_width = int((min(volume, 100) / 100) * bar_width)
     cv2.rectangle(frame, (bar_x, bar_y), (bar_x + fill_width, bar_y + bar_height), (0, 255, 0), -1)
     cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (255, 255, 255), 1)
 
-    cv2.putText(frame, f"Volume: {int(volume)}%", (bar_x + bar_width + 10, bar_y + 18), 
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+    cv2.putText(frame, f"{int(volume)}%", (bar_x + bar_width + 5, bar_y + 12), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
 
 def main(cam_index=0, mic_index=None, ppt_path=None):
     global status_voz_hud, ultima_detecao
     
-    #--- ABRIR POWERPOINT em apresentacao ---
+    # --- ABRIR POWERPOINT EM MODO APRESENTACAO ---
     if ppt_path and os.path.exists(ppt_path):
         print(f"A abrir apresentação: {ppt_path}")
         caminho_formatado = os.path.normpath(ppt_path)
-        
+
         subprocess.Popen(f'start powerpnt /s "{caminho_formatado}"', shell=True)
         time.sleep(3)
     
@@ -49,23 +49,28 @@ def main(cam_index=0, mic_index=None, ppt_path=None):
     analyzer = HandAnalyzer()
     controller = GestureController()
     
-    # Passa o índice do microfone para o controlador de voz
     voice = VoiceController(mic_index=mic_index)
     
     screen_width, screen_height = pyautogui.size()
-    frame_margin = 100 
+    frame_margin = 60 
     
-    # Inicia com a câmara selecionada dinamicamente
     cap = cv2.VideoCapture(cam_index, cv2.CAP_DSHOW)
-
     audio = AudioController()
+
+    nome_janela = "Controle de Apresentacao v1.0"
+    cv2.namedWindow(nome_janela)
+    
+    # --- CÁLCULO dimensoes da tabela ---
+    pos_x = screen_width - 320
+    pos_y = 0
+    cv2.moveWindow(nome_janela, pos_x, pos_y)
     
     while True:
         ret, frame = cap.read()
         if not ret: break
         
         frame = cv2.flip(frame, 1)
-        frame = cv2.resize(frame, (640, 480))
+        frame = cv2.resize(frame, (320, 240))
         h_cam, w_cam, _ = frame.shape
         
         current_time = time.time()
@@ -85,16 +90,16 @@ def main(cam_index=0, mic_index=None, ppt_path=None):
                     if not voice.is_listening:
                         def listen_thread():
                             global status_voz_hud, ultima_detecao
-                            status_voz_hud = "Status de voz: A ouvir..."
+                            status_voz_hud = "Voz: A ouvir..."
                             resultado = voice.listen_for_slide()
                             texto_ouvido = resultado[0] if isinstance(resultado, tuple) else resultado
                             if texto_ouvido:
-                                ultima_detecao = f"Voz detectada: {texto_ouvido}"
-                            status_voz_hud = "Status de voz: Pronto"
+                                ultima_detecao = f"Ouvido: {texto_ouvido}"
+                            status_voz_hud = "Voz: Pronto"
 
                         threading.Thread(target=listen_thread, daemon=True).start()
                     
-                    status_text = "Comando de voz em escuta"
+                    status_text = "Escuta Ativa"
                     color_action = (0, 255, 255) 
                 else:
                     status_text = controller.get_right_hand_command(labels, hands_landmarks, analyzer)
@@ -108,7 +113,7 @@ def main(cam_index=0, mic_index=None, ppt_path=None):
                         mouse_x = np.interp(x8, (frame_margin, w_cam - frame_margin), (0, screen_width))
                         mouse_y = np.interp(y8, (frame_margin, h_cam - frame_margin), (0, screen_height))
                         pyautogui.moveTo(mouse_x, mouse_y)
-                        cv2.circle(frame, (int(x8), int(y8)), 8, (0, 0, 255), -1)
+                        cv2.circle(frame, (int(x8), int(y8)), 5, (0, 0, 255), -1)
 
             frame = detector.draw_hand_landmarks(frame, hands_landmarks)
 
@@ -141,34 +146,33 @@ def main(cam_index=0, mic_index=None, ppt_path=None):
             color_action = (150, 150, 150)
 
         is_ready, cd_time_left = controller.get_cooldown_status()
-        cd_text = "PRONTO" if is_ready else f"ESPERE: {cd_time_left:.1f}s"
+        cd_text = "OK" if is_ready else f"{cd_time_left:.1f}s"
         cd_color = (0, 255, 0) if is_ready else (0, 165, 255)
 
-        # HUD
-        cv2.rectangle(frame, (0, 0), (640, 60), (20, 20, 20), -1)
-        cv2.putText(frame, f"Modo: {current_mode_str}", (15, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color_mode, 2)
+        cv2.rectangle(frame, (0, 0), (320, 40), (20, 20, 20), -1)
+        cv2.putText(frame, f"M: {current_mode_str}", (10, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color_mode, 1)
         if current_mode_str != "INATIVO":
-            cv2.putText(frame, f"Tempo Restante: {toggle_time_left:.1f}s", (15, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            cv2.putText(frame, f"Tempo: {toggle_time_left:.1f}s", (10, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 255, 255), 1)
         else:
-            cv2.putText(frame, "Faca um gesto com a mao esq.", (15, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (150, 150, 150), 1)
+            cv2.putText(frame, f"Acao: {status_text}", (10, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.35, color_action, 1)
         
-        cv2.putText(frame, f"Cooldown: {cd_text}", (400, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, cd_color, 2)
-        cv2.putText(frame, status_text, (400, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_action, 1)
+        cv2.putText(frame, f"CD: {cd_text}", (230, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.4, cd_color, 1)
 
         if controller.voice_mode_active:
             overlay = frame.copy()
-            cv2.rectangle(overlay, (0, 410), (640, 480), (0, 0, 0), -1)
+            cv2.rectangle(overlay, (0, 190), (320, 240), (0, 0, 0), -1)
             cv2.addWeighted(overlay, 0.7, frame, 0.3, 0, frame)
-            cv2.putText(frame, status_voz_hud, (15, 435), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-            cv2.putText(frame, ultima_detecao, (15, 465), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+            cv2.putText(frame, status_voz_hud, (10, 205), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 255, 255), 1)
+            cv2.putText(frame, ultima_detecao, (10, 225), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 255), 1)
 
         if controller.show_mute_overlay:
-            cv2.putText(frame, "MUTE", (240, 260), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (0, 255, 0), 4)
+            cv2.putText(frame, "MUTE", (110, 130), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
         
-        cv2.imshow("Controle de Apresentacao v1.0", frame)
+        # Mostra o frame na janela criada
+        cv2.imshow(nome_janela, frame)
         
         if cv2.waitKey(1) & 0xFF == ord('q'): break
-        if cv2.getWindowProperty("Controle de Apresentacao v1.0", cv2.WND_PROP_VISIBLE) < 1: break
+        if cv2.getWindowProperty(nome_janela, cv2.WND_PROP_VISIBLE) < 1: break
 
     cap.release()
     cv2.destroyAllWindows()
