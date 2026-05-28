@@ -4,8 +4,7 @@ def listar_microfones():
     nomes = sr.Microphone.list_microphone_names()
     if not nomes:
         return []
-    
-    # Retorna uma lista de tuplos: (índice, "Nome do Microfone")
+
     return [(i, nome) for i, nome in enumerate(nomes)]
 
 def testar_microfone(device_index):

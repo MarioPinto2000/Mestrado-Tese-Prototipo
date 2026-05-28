@@ -35,10 +35,16 @@ class GestureController:
         # Ancoras para os movimentos do slide
         self.index_anchor_x = None
         self.pinky_anchor_x = None
+        
+        # Registo de tempo para validação do indicador
+        self.index_detection_time = 0.0
 
         # Memoria para movimento do zoom
         self.prev_right_hand_open = False
         self.prev_right_hand_closed = False
+        
+        # Controlador do nível de zoom (0 significa 100%)
+        self.zoom_level = 0 
 
     def get_cooldown_status(self):
         current_time = time.time()
@@ -69,7 +75,6 @@ class GestureController:
     def update_state(self, labels: List[str], hands_landmarks: List[List], analyzer) -> bool:
         current_time = time.time()
 
-        # CORREÇÃO DO MUTE: Verifica e desativa o overlay após passarem 2 segundos
         if self.show_mute_overlay and (current_time - self.last_mute_time >= 2.0):
             self.show_mute_overlay = False
 
@@ -99,7 +104,10 @@ class GestureController:
         if (current_time - self.mode_activation_time) > self.mode_timeout:
             self._set_active_mode(None)
 
-        if not self.command_mode_active: self.index_anchor_x = None
+        if not self.command_mode_active: 
+            self.index_anchor_x = None
+            self.index_detection_time = 0.0
+            
         if not self.zoom_mode_active: self.laser_active = False
         if not self.multimedia_active:
             self.volume_anchor_x = None
@@ -134,20 +142,46 @@ class GestureController:
         # --- MODO NAVEGAÇÃO ---
         if self.command_mode_active:
             if total_sem_polegar == 1 and fingers['index']:
+                current_time = time.time()
+                
+                ready, remaining = self.get_cooldown_status()
+                if not ready:
+                    self.index_anchor_x = None
+                    self.index_detection_time = 0.0
+                    return f"ESPERE: {remaining:.1f}s"
+                
                 ponta_atual_x = hand[8].x
+                
                 if self.index_anchor_x is None:
                     self.index_anchor_x = ponta_atual_x
+                    self.index_detection_time = current_time
                     return "Indicador detetado."
                 
+                tempo_decorrido = current_time - self.index_detection_time
+                if tempo_decorrido < 0.5:
+                    tempo_restante = 0.5 - tempo_decorrido
+                    self.index_anchor_x = ponta_atual_x 
+                    return f"A fixar posicao ({tempo_restante:.1f}s)..."
+                
                 deslocamento = ponta_atual_x - self.index_anchor_x
-                if self.get_cooldown_status()[0]:
-                    threshold = 0.05
-                    if deslocamento < -threshold:
-                        if self._can_execute(): pyautogui.press('right'); self.index_anchor_x = ponta_atual_x; return "RASTREIO: Proximo >>"
-                    elif deslocamento > threshold:
-                        if self._can_execute(): pyautogui.press('left'); self.index_anchor_x = ponta_atual_x; return "RASTREIO: Anterior <<"
+                threshold = 0.05
+                if deslocamento < -threshold:
+                    if self._can_execute(): 
+                        pyautogui.press('right')
+                        self.index_anchor_x = ponta_atual_x
+                        self.index_detection_time = 0.0 
+                        return "Proximo >>"
+                elif deslocamento > threshold:
+                    if self._can_execute(): 
+                        pyautogui.press('left')
+                        self.index_anchor_x = ponta_atual_x
+                        self.index_detection_time = 0.0 
+                        return "Anterior <<"
+                        
                 return "A seguir indicador."
+                
             self.index_anchor_x = None
+            self.index_detection_time = 0.0
             return "Modo Navegacao Ativo"
 
         # --- MODO ZOOM / FOCUS ---
@@ -159,18 +193,43 @@ class GestureController:
 
             dist_ok = analyzer.calculate_distance((hand[4].x, hand[4].y), (hand[8].x, hand[8].y))
             if dist_ok < 0.10 and fingers['middle'] and fingers['pinky']:
-                if self._can_execute(): pyautogui.hotkey('ctrl', 'alt', '0'); return "RESET ZOOM"
+                if self._can_execute(): 
+                    pyautogui.hotkey('ctrl', 'alt', '0')
+                    self.zoom_level = 0  
+                    self.prev_right_hand_open = False   
+                    self.prev_right_hand_closed = False 
+                    return "RESET ZOOM"
 
             abertos_total = sum(fingers.values())
-            if self.prev_right_hand_closed and abertos_total >= 4 and self._can_execute():
-                for _ in range(3): pyautogui.hotkey('ctrl', '+')
-                return "Zoom In"
-            elif self.prev_right_hand_open and abertos_total <= 1 and self._can_execute():
-                for _ in range(3): pyautogui.hotkey('ctrl', '-')
-                return "Zoom Out"
             
-            self.prev_right_hand_open = (abertos_total >= 4)
-            self.prev_right_hand_closed = (abertos_total <= 1)
+            if self.prev_right_hand_closed and abertos_total >= 4:
+                if self._can_execute():
+                    for _ in range(3): pyautogui.hotkey('ctrl', '+')
+                    self.zoom_level += 1
+                    self.prev_right_hand_closed = False 
+                    self.prev_right_hand_open = True
+                    return f"Zoom In ({self.zoom_level})"
+                
+            elif self.prev_right_hand_open and abertos_total <= 1:
+                if self.zoom_level > 0:
+                    if self._can_execute():
+                        for _ in range(3): pyautogui.hotkey('ctrl', '-')
+                        self.zoom_level -= 1
+                        self.prev_right_hand_open = False 
+                        self.prev_right_hand_closed = True
+                        return f"Zoom Out ({self.zoom_level})"
+                else:
+                    self.prev_right_hand_open = False
+                    self.prev_right_hand_closed = True
+                    return "Zoom no minimo (100%)"
+
+            if abertos_total >= 4:
+                self.prev_right_hand_open = True
+                self.prev_right_hand_closed = False
+            elif abertos_total <= 1:
+                self.prev_right_hand_closed = True
+                self.prev_right_hand_open = False
+                
             return "Modo Focus"
 
        # --- MODO MULTIMÉDIA ---
@@ -180,7 +239,6 @@ class GestureController:
             
             dist_ok = analyzer.calculate_distance((hand[4].x, hand[4].y), (hand[8].x, hand[8].y))
             
-            # Gesto Play/Pause
             if dist_ok < 0.05 and fingers['middle'] and fingers['ring'] and fingers['pinky']:
                 self.volume_pose_counter = 0  
                 self.show_volume_bar = False
@@ -189,7 +247,6 @@ class GestureController:
                     threading.Thread(target=self._execute_multimedia_action, args=(sw, sh, sw//2, sh//2), daemon=True).start()
                     return "PLAY/PAUSE..."
             
-            # Gesto Mute
             elif fingers['index'] and fingers['middle'] and not fingers['ring'] and not fingers['pinky']:
                 self.volume_pose_counter = 0
                 self.show_volume_bar = False
@@ -199,7 +256,6 @@ class GestureController:
                     self.show_mute_overlay = True
                     return "AUDIO: MUTE/UNMUTE"
 
-            # Ajuste de Volume (Apenas se não estiver bloqueado pelo Mute)
             elif not mute_bloqueado:
                 indicador_esticado = fingers['index']
                 outros_recolhidos = not (fingers['middle'] or fingers['ring'] or fingers['pinky'])
