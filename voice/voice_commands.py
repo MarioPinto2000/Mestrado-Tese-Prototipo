@@ -3,7 +3,6 @@ import pyautogui
 from word2number import w2n
 
 class VoiceController:
-    # Modificado para aceitar o índice do microfone selecionado na interface
     def __init__(self, mic_index=None):
         self.recognizer = sr.Recognizer()
         self.mic = sr.Microphone(device_index=mic_index)

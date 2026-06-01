@@ -3,20 +3,22 @@ import pyautogui
 import numpy as np
 import threading
 import time
-import subprocess  # Necessário para abrir o PowerPoint
-import os          # Necessário para verificar se o ficheiro existe
-
+import subprocess  
+import os          
 from gestures.hand_detector import HandDetector
 from gestures.hand_analyzer import HandAnalyzer
 from gestures.gesture_controller import GestureController
 from voice.voice_commands import VoiceController 
 from audio.audio_utils import AudioController
+from metrics_logger import MetricsLogger
 
 pyautogui.PAUSE = 0
 pyautogui.FAILSAFE = False
 
 status_voz_hud = "Status de voz: A aguardar..."
 ultima_detecao = "Voz detectada: ---"
+
+logger = MetricsLogger()
 
 def draw_horizontal_volume_bar(frame, volume):
     h, w, _ = frame.shape
@@ -60,12 +62,16 @@ def main(cam_index=0, mic_index=None, ppt_path=None):
     nome_janela = "Controle de Apresentacao v1.0"
     cv2.namedWindow(nome_janela)
     
-    # --- CÁLCULO dimensoes da tabela ---
     pos_x = screen_width - 320
     pos_y = 0
     cv2.moveWindow(nome_janela, pos_x, pos_y)
     
+
+    ultimo_comando_registado = None
+    
     while True:
+        start_frame_time = time.time()
+        
         ret, frame = cap.read()
         if not ret: break
         
@@ -91,10 +97,26 @@ def main(cam_index=0, mic_index=None, ppt_path=None):
                         def listen_thread():
                             global status_voz_hud, ultima_detecao
                             status_voz_hud = "Voz: A ouvir..."
+                            
+                            start_voice_time = time.time()
                             resultado = voice.listen_for_slide()
+                            end_voice_time = time.time()
+                            voice_latency_ms = (end_voice_time - start_voice_time) * 1000
+                            
                             texto_ouvido = resultado[0] if isinstance(resultado, tuple) else resultado
+                            
                             if texto_ouvido:
-                                ultima_detecao = f"Ouvido: {texto_ouvido}"
+                                texto_valido = str(texto_ouvido).strip().lower()
+                                ultima_detecao = f"Ouvido: {texto_valido}"
+                                
+                                # --- REGRA DA VOZ ---
+                                if "slide" in texto_valido or "go to" in texto_valido:
+                                    logger.log_voice_attempt(voice_latency_ms, success=True)
+                                else:
+                                    logger.log_voice_attempt(voice_latency_ms, success=False)
+                            else:
+                                pass
+                                
                             status_voz_hud = "Voz: Pronto"
 
                         threading.Thread(target=listen_thread, daemon=True).start()
@@ -104,17 +126,42 @@ def main(cam_index=0, mic_index=None, ppt_path=None):
                 else:
                     status_text = controller.get_right_hand_command(labels, hands_landmarks, analyzer)
                     color_action = (0, 255, 0)
-            
-            if controller.zoom_mode_active and controller.laser_active:
-                for i, label in enumerate(labels):
-                    if label == "Right":
-                        hand = hands_landmarks[i]
-                        x8, y8 = hand[8].x * w_cam, hand[8].y * h_cam
-                        mouse_x = np.interp(x8, (frame_margin, w_cam - frame_margin), (0, screen_width))
-                        mouse_y = np.interp(y8, (frame_margin, h_cam - frame_margin), (0, screen_height))
-                        pyautogui.moveTo(mouse_x, mouse_y)
-                        cv2.circle(frame, (int(x8), int(y8)), 5, (0, 0, 255), -1)
+                    
+                    if status_text and status_text != "...":
+                        status_valido = str(status_text).strip().upper().replace("Ç", "C")
+                        
+                        comandos_de_acao_reais = [
+                            "PROXIMO", "ANTERIOR", "AVANCAR", "VOLTAR", "SEGUINTE", 
+                            "PLAY", "PAUSE", "PLAY/PAUSE", "MUTE", "RESET", 
+                            "CLICK", "ZOOM IN", "ZOOM OUT", "RASTREIO"
+                        ]
+                        
+                        is_comando_real = any(cmd in status_valido for cmd in comandos_de_acao_reais)
+                        
+                        if is_comando_real:
+                            if status_valido != ultimo_comando_registado:
+                                logger.log_gesture_attempt() 
+                                ultimo_comando_registado = status_valido
+                        else:
+                            estados_intermedios = ["DETETADO", "FIXAR", "SEGUIR", "MODO", "ESPERE", "PENDENTE"]
+                            if any(est in status_valido for est in estados_intermedios):
+                                ultimo_comando_registado = None
+                    else:
+                        ultimo_comando_registado = None
+        else:
+            ultimo_comando_registado = None
 
+        if controller.zoom_mode_active and controller.laser_active:
+            for i, label in enumerate(labels):
+                if label == "Right":
+                    hand = hands_landmarks[i]
+                    x8, y8 = hand[8].x * w_cam, hand[8].y * h_cam
+                    mouse_x = np.interp(x8, (frame_margin, w_cam - frame_margin), (0, screen_width))
+                    mouse_y = np.interp(y8, (frame_margin, h_cam - frame_margin), (0, screen_height))
+                    pyautogui.moveTo(mouse_x, mouse_y)
+                    cv2.circle(frame, (int(x8), int(y8)), 5, (0, 0, 255), -1)
+
+        if hands_landmarks:
             frame = detector.draw_hand_landmarks(frame, hands_landmarks)
 
         current_mode_str = "INATIVO"
@@ -142,7 +189,6 @@ def main(cam_index=0, mic_index=None, ppt_path=None):
         if current_mode_str != "INATIVO":
             toggle_time_left = max(0, controller.mode_timeout - (current_time - controller.mode_activation_time))
         else:
-            status_text = "..."
             color_action = (150, 150, 150)
 
         is_ready, cd_time_left = controller.get_cooldown_status()
@@ -168,7 +214,10 @@ def main(cam_index=0, mic_index=None, ppt_path=None):
         if controller.show_mute_overlay:
             cv2.putText(frame, "MUTE", (110, 130), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
         
-        # Mostra o frame na janela criada
+        end_frame_time = time.time()
+        latency_ms = (end_frame_time - start_frame_time) * 1000
+        logger.log_gesture_frame(latency_ms)
+
         cv2.imshow(nome_janela, frame)
         
         if cv2.waitKey(1) & 0xFF == ord('q'): break
@@ -176,6 +225,8 @@ def main(cam_index=0, mic_index=None, ppt_path=None):
 
     cap.release()
     cv2.destroyAllWindows()
+
+    logger.save_report()
 
 if __name__ == "__main__":
     main()
