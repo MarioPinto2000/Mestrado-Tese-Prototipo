@@ -36,7 +36,7 @@ def draw_horizontal_volume_bar(frame, volume):
     cv2.putText(frame, f"{int(volume)}%", (bar_x + bar_width + 5, bar_y + 12), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
 
-def main(cam_index=0, mic_index=None, ppt_path=None):
+def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
     global status_voz_hud, ultima_detecao
     
     # --- ABRIR POWERPOINT EM MODO APRESENTACAO ---
@@ -226,7 +226,9 @@ def main(cam_index=0, mic_index=None, ppt_path=None):
     cap.release()
     cv2.destroyAllWindows()
 
-    logger.save_report()
+    # Alterado: Gravação condicionada à escolha do utilizador
+    if salvar_metricas:
+        logger.save_report()
 
 if __name__ == "__main__":
     main()

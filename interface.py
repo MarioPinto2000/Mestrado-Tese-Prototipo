@@ -12,7 +12,7 @@ class AppUI:
         self.root.title("Controlo Gestual PowerPoint v1.1")
         self.pptx_path = None 
 
-        width, height = 450, 520 
+        width, height = 450, 560 
         self.center_window(self.root, width, height)
         self.root.configure(bg="#1e1e2e")
 
@@ -40,10 +40,22 @@ class AppUI:
 
         self.carregar_dispositivos()
 
+        #Checkbox 
+        self.chk_salvar_var = tk.BooleanVar(value=True)
+        self.chk_salvar = tk.Checkbutton(
+            root, 
+            text="Gravar histórico e métricas de desempenho", 
+            variable=self.chk_salvar_var,
+            bg="#1e1e2e", fg="#cdd6f4", selectcolor="#1e1e2e",
+            activebackground="#1e1e2e", activeforeground="#a6e3a1",
+            font=("Segoe UI", 10), cursor="hand2"
+        )
+        self.chk_salvar.pack(pady=10)
+
         # --- BOTÕES DE EXECUÇÃO ---
         self.btn_manual = tk.Button(root, text="MANUAL DE GESTOS", command=self.open_manual,
                                     width=25, height=2, bg="#fab387", font=("Segoe UI", 10, "bold"), relief="flat", cursor="hand2")
-        self.btn_manual.pack(pady=10)
+        self.btn_manual.pack(pady=5)
 
         self.btn_start = tk.Button(root, text="INICIAR SISTEMA", command=self.run_main,
                                    width=25, height=2, bg="#a6e3a1", font=("Segoe UI", 10, "bold"), relief="flat", cursor="hand2")
@@ -83,10 +95,12 @@ class AppUI:
         except:
             idx_camara, idx_microfone = 0, None
 
+        deve_salvar = self.chk_salvar_var.get()
+
         self.btn_start.config(state=tk.DISABLED, text="SISTEMA ATIVO", bg="#45475a")
         
         def thread_wrapper():
-            main(cam_index=idx_camara, mic_index=idx_microfone, ppt_path=self.pptx_path)
+            main(cam_index=idx_camara, mic_index=idx_microfone, ppt_path=self.pptx_path, salvar_metricas=deve_salvar)
             self.root.after(0, self.reset_button)
 
         threading.Thread(target=thread_wrapper, daemon=True).start()
