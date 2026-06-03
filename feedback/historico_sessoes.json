@@ -1,12 +1,12 @@
 {
-    "total_sessoes_registadas": 3,
+    "total_sessoes_registadas": 4,
     "dados_globais_acumulados": {
-        "numero_total_de_testes": 3,
-        "tempo_acumulado_testes_segundos": 191.47,
-        "total_frames_analisados": 1491,
+        "numero_total_de_testes": 4,
+        "tempo_acumulado_testes_segundos": 240.07,
+        "total_frames_analisados": 1741,
         "gestos_global": {
-            "latencia_media_geral_ms": 79.76,
-            "total_comandos_executados": 16
+            "latencia_media_geral_ms": 79.56,
+            "total_comandos_executados": 20
         },
         "voz_global": {
             "latencia_media_geral_ms": 0.0,
@@ -62,6 +62,24 @@
             "metricas_gestos": {
                 "latencia_media_ms": 83.94,
                 "total_gestos_executados": 16
+            },
+            "metricas_voz": {
+                "latencia_media_reconhecimento_ms": 0.0,
+                "total_tentativas_voz": 0,
+                "total_comandos_reconhecidos": 0,
+                "taxa_precisao_voz_percentual": 0.0
+            }
+        },
+        {
+            "sessao_id": 4,
+            "data_execucao": "2026-06-03 19:28:03",
+            "informacao_geral": {
+                "duracao_da_sessao_segundos": 48.6,
+                "total_frames_processados": 250
+            },
+            "metricas_gestos": {
+                "latencia_media_ms": 78.31,
+                "total_gestos_executados": 4
             },
             "metricas_voz": {
                 "latencia_media_reconhecimento_ms": 0.0,

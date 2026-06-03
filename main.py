@@ -52,11 +52,11 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
     
     hwnd_ppt_slideshow = None
     
-    # 2. SEURANÇA ANTIDUPLICADO: MATAR INSTÂNCIAS ANTIGAS REPETIDAS DO POWERPOINT
+    # 2. SEGURANÇA ANTIDUPLICADO: MATAR INSTÂNCIAS ANTIGAS REPETIDAS DO POWERPOINT
     if ppt_path:
         print("A limpar processos antigos do PowerPoint para evitar duplicações...")
         subprocess.run("taskkill /f /im powerpnt.exe", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        time.sleep(1) # Aguarda o Windows libertar a memória
+        time.sleep(1) 
     
     # 3. ABRIR APENAS UM POWERPOINT DIRETAMENTE EM FULLSCREEN
     if ppt_path and os.path.exists(ppt_path):
@@ -65,7 +65,6 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
         
         try:
             pythoncom.CoInitialize()
-            # Cria uma instância limpa e isolada
             ppt_app = win32com.client.Dispatch("PowerPoint.Application")
             ppt_app.Visible = True 
             
@@ -73,10 +72,8 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
             print("A forçar modo de Apresentação de Diaporamas...")
             apresentacao.SlideShowSettings.Run()
             
-            # Pequeno tempo para o PowerPoint criar o ecrã inteiro graficamente
             time.sleep(2)
             
-            # Encontra a janela de apresentação do PPT e força-a a vir para a frente de tudo
             hwnd_ppt_slideshow = win32gui.FindWindow("screenClass", None)
             if hwnd_ppt_slideshow:
                 win32gui.ShowWindow(hwnd_ppt_slideshow, win32con.SW_SHOWMAXIMIZED)
@@ -84,7 +81,6 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
             
         except Exception as e:
             print(f"Erro ao abrir via API COM: {e}")
-            # Fallback seguro caso o COM falhe gravemente
             os.startfile(caminho_formatado)
             time.sleep(2)
             pyautogui.press('f5')
@@ -100,21 +96,36 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
     screen_width, screen_height = pyautogui.size()
     frame_margin = 60 
     
-    # Inicializa o dispositivo de captura da câmara
+    # --- OTIMIZAÇÃO CRÍTICA PARA ELIMINAR DELAY EM CÂMARAS USB ---
+    print(f"A configurar câmara USB de alta performance (Índice {cam_index})...")
     cap = cv2.VideoCapture(cam_index, cv2.CAP_DSHOW)
+    
+    # 1. Força o uso do codec MJPEG (Hardware acelerado na câmara USB externa)
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+    
+    # 2. Desativa o buffer interno para garantir que o Python lê APENAS a frame atual (Tempo Real Real)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    
+    # 3. Define a resolução nativa baixa de captura para poupar processamento gráfico antes do resize
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+    
+    # 4. Força uma taxa de atualização fluida
+    cap.set(cv2.CAP_PROP_FPS, 30)
+    # -------------------------------------------------------------
+
     audio = AudioController()
 
     nome_janela = "Controle de Apresentacao v1.0"
     cv2.namedWindow(nome_janela)
     
-    # 4. CONFIGURAR A JANELA DA CÂMARA NO TOPO ABSOLUTO (À FRENTE DA APRESENTAÇÃO)
+    # 4. CONFIGURAR A JANELA DA CÂMARA NO TOPO ABSOLUTO
     pos_x = screen_width - 320
     pos_y = 0
     cv2.moveWindow(nome_janela, pos_x, pos_y)
     
     hwnd_camara = win32gui.FindWindow(None, nome_janela)
     if hwnd_camara:
-        # HWND_TOPMOST coloca obrigatoriamente a câmara à frente do PowerPoint Fullscreen
         win32gui.SetWindowPos(hwnd_camara, win32con.HWND_TOPMOST, pos_x, pos_y, 320, 240, win32con.SWP_SHOWWINDOW)
 
     ultimo_comando_registado = None
@@ -122,6 +133,7 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
     while True:
         start_frame_time = time.time()
         
+        # O OpenCV agora puxa instantaneamente a última imagem gerada pela câmara USB
         ret, frame = cap.read()
         if not ret: break
         
@@ -191,14 +203,12 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
                             if status_valido != ultimo_comando_registado:
                                 logger.log_gesture_attempt()
                                 
-                                # Garante o foco silencioso na janela do slideshow para enviar as teclas
                                 if not hwnd_ppt_slideshow:
                                     hwnd_ppt_slideshow = win32gui.FindWindow("screenClass", None)
                                 
                                 if hwnd_ppt_slideshow:
                                     win32gui.SetForegroundWindow(hwnd_ppt_slideshow)
                                 
-                                # Re-afirma que a janela da câmara está por cima imediatamente a seguir ao gesto
                                 if hwnd_camara:
                                     win32gui.SetWindowPos(hwnd_camara, win32con.HWND_TOPMOST, pos_x, pos_y, 320, 240, win32con.SWP_NOSIZE | win32con.SWP_NOMOVE)
                                 
@@ -281,7 +291,6 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
 
         cv2.imshow(nome_janela, frame)
         
-        # Monitoramento em tempo real: garante que a cada 2 segundos a câmara volta a fixar-se no topo absoluto
         if hwnd_camara and int(time.time()) % 2 == 0:
             win32gui.SetWindowPos(hwnd_camara, win32con.HWND_TOPMOST, pos_x, pos_y, 320, 240, win32con.SWP_NOSIZE | win32con.SWP_NOMOVE)
 
