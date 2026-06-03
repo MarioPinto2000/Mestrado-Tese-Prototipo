@@ -1,0 +1,74 @@
+{
+    "total_sessoes_registadas": 3,
+    "dados_globais_acumulados": {
+        "numero_total_de_testes": 3,
+        "tempo_acumulado_testes_segundos": 191.47,
+        "total_frames_analisados": 1491,
+        "gestos_global": {
+            "latencia_media_geral_ms": 79.76,
+            "total_comandos_executados": 16
+        },
+        "voz_global": {
+            "latencia_media_geral_ms": 0.0,
+            "total_tentativas_audio": 0,
+            "total_comandos_reconhecidos": 0,
+            "taxa_precisao_geral_percentual": 0.0
+        }
+    },
+    "historico": [
+        {
+            "sessao_id": 1,
+            "data_execucao": "2026-06-03 19:20:55",
+            "informacao_geral": {
+                "duracao_da_sessao_segundos": 27.5,
+                "total_frames_processados": 162
+            },
+            "metricas_gestos": {
+                "latencia_media_ms": 58.22,
+                "total_gestos_executados": 0
+            },
+            "metricas_voz": {
+                "latencia_media_reconhecimento_ms": 0.0,
+                "total_tentativas_voz": 0,
+                "total_comandos_reconhecidos": 0,
+                "taxa_precisao_voz_percentual": 0.0
+            }
+        },
+        {
+            "sessao_id": 2,
+            "data_execucao": "2026-06-03 19:21:31",
+            "informacao_geral": {
+                "duracao_da_sessao_segundos": 26.66,
+                "total_frames_processados": 106
+            },
+            "metricas_gestos": {
+                "latencia_media_ms": 64.52,
+                "total_gestos_executados": 0
+            },
+            "metricas_voz": {
+                "latencia_media_reconhecimento_ms": 0.0,
+                "total_tentativas_voz": 0,
+                "total_comandos_reconhecidos": 0,
+                "taxa_precisao_voz_percentual": 0.0
+            }
+        },
+        {
+            "sessao_id": 3,
+            "data_execucao": "2026-06-03 19:23:24",
+            "informacao_geral": {
+                "duracao_da_sessao_segundos": 137.31,
+                "total_frames_processados": 1223
+            },
+            "metricas_gestos": {
+                "latencia_media_ms": 83.94,
+                "total_gestos_executados": 16
+            },
+            "metricas_voz": {
+                "latencia_media_reconhecimento_ms": 0.0,
+                "total_tentativas_voz": 0,
+                "total_comandos_reconhecidos": 0,
+                "taxa_precisao_voz_percentual": 0.0
+            }
+        }
+    ]
+}

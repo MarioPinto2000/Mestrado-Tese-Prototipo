@@ -12,6 +12,12 @@ from voice.voice_commands import VoiceController
 from audio.audio_utils import AudioController
 from metrics_logger import MetricsLogger
 
+# Importações oficiais do ecossistema Windows
+import win32com.client
+import pythoncom
+import win32gui
+import win32con
+
 pyautogui.PAUSE = 0
 pyautogui.FAILSAFE = False
 
@@ -39,13 +45,51 @@ def draw_horizontal_volume_bar(frame, volume):
 def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
     global status_voz_hud, ultima_detecao
     
-    # --- ABRIR POWERPOINT EM MODO APRESENTACAO ---
+    # 1. MINIMIZAR A INTERFACE GRÁFICA LOGO NO INÍCIO
+    hwnd_interface = win32gui.FindWindow(None, "Controlo Gestual PowerPoint v1.1")
+    if hwnd_interface:
+        win32gui.ShowWindow(hwnd_interface, win32con.SW_MINIMIZE)
+    
+    hwnd_ppt_slideshow = None
+    
+    # 2. SEURANÇA ANTIDUPLICADO: MATAR INSTÂNCIAS ANTIGAS REPETIDAS DO POWERPOINT
+    if ppt_path:
+        print("A limpar processos antigos do PowerPoint para evitar duplicações...")
+        subprocess.run("taskkill /f /im powerpnt.exe", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(1) # Aguarda o Windows libertar a memória
+    
+    # 3. ABRIR APENAS UM POWERPOINT DIRETAMENTE EM FULLSCREEN
     if ppt_path and os.path.exists(ppt_path):
-        print(f"A abrir apresentação: {ppt_path}")
-        caminho_formatado = os.path.normpath(ppt_path)
-
-        subprocess.Popen(f'start powerpnt /s "{caminho_formatado}"', shell=True)
-        time.sleep(3)
+        print(f"A iniciar PowerPoint: {ppt_path}")
+        caminho_formatado = os.path.abspath(ppt_path)
+        
+        try:
+            pythoncom.CoInitialize()
+            # Cria uma instância limpa e isolada
+            ppt_app = win32com.client.Dispatch("PowerPoint.Application")
+            ppt_app.Visible = True 
+            
+            apresentacao = ppt_app.Presentations.Open(caminho_formatado)
+            print("A forçar modo de Apresentação de Diaporamas...")
+            apresentacao.SlideShowSettings.Run()
+            
+            # Pequeno tempo para o PowerPoint criar o ecrã inteiro graficamente
+            time.sleep(2)
+            
+            # Encontra a janela de apresentação do PPT e força-a a vir para a frente de tudo
+            hwnd_ppt_slideshow = win32gui.FindWindow("screenClass", None)
+            if hwnd_ppt_slideshow:
+                win32gui.ShowWindow(hwnd_ppt_slideshow, win32con.SW_SHOWMAXIMIZED)
+                win32gui.SetForegroundWindow(hwnd_ppt_slideshow)
+            
+        except Exception as e:
+            print(f"Erro ao abrir via API COM: {e}")
+            # Fallback seguro caso o COM falhe gravemente
+            os.startfile(caminho_formatado)
+            time.sleep(2)
+            pyautogui.press('f5')
+            time.sleep(1)
+            hwnd_ppt_slideshow = win32gui.FindWindow("screenClass", None)
     
     detector = HandDetector(max_num_hands=2)
     analyzer = HandAnalyzer()
@@ -56,16 +100,22 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
     screen_width, screen_height = pyautogui.size()
     frame_margin = 60 
     
+    # Inicializa o dispositivo de captura da câmara
     cap = cv2.VideoCapture(cam_index, cv2.CAP_DSHOW)
     audio = AudioController()
 
     nome_janela = "Controle de Apresentacao v1.0"
     cv2.namedWindow(nome_janela)
     
+    # 4. CONFIGURAR A JANELA DA CÂMARA NO TOPO ABSOLUTO (À FRENTE DA APRESENTAÇÃO)
     pos_x = screen_width - 320
     pos_y = 0
     cv2.moveWindow(nome_janela, pos_x, pos_y)
     
+    hwnd_camara = win32gui.FindWindow(None, nome_janela)
+    if hwnd_camara:
+        # HWND_TOPMOST coloca obrigatoriamente a câmara à frente do PowerPoint Fullscreen
+        win32gui.SetWindowPos(hwnd_camara, win32con.HWND_TOPMOST, pos_x, pos_y, 320, 240, win32con.SWP_SHOWWINDOW)
 
     ultimo_comando_registado = None
     
@@ -109,7 +159,6 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
                                 texto_valido = str(texto_ouvido).strip().lower()
                                 ultima_detecao = f"Ouvido: {texto_valido}"
                                 
-                                # --- REGRA DA VOZ ---
                                 if "slide" in texto_valido or "go to" in texto_valido:
                                     logger.log_voice_attempt(voice_latency_ms, success=True)
                                 else:
@@ -140,7 +189,19 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
                         
                         if is_comando_real:
                             if status_valido != ultimo_comando_registado:
-                                logger.log_gesture_attempt() 
+                                logger.log_gesture_attempt()
+                                
+                                # Garante o foco silencioso na janela do slideshow para enviar as teclas
+                                if not hwnd_ppt_slideshow:
+                                    hwnd_ppt_slideshow = win32gui.FindWindow("screenClass", None)
+                                
+                                if hwnd_ppt_slideshow:
+                                    win32gui.SetForegroundWindow(hwnd_ppt_slideshow)
+                                
+                                # Re-afirma que a janela da câmara está por cima imediatamente a seguir ao gesto
+                                if hwnd_camara:
+                                    win32gui.SetWindowPos(hwnd_camara, win32con.HWND_TOPMOST, pos_x, pos_y, 320, 240, win32con.SWP_NOSIZE | win32con.SWP_NOMOVE)
+                                
                                 ultimo_comando_registado = status_valido
                         else:
                             estados_intermedios = ["DETETADO", "FIXAR", "SEGUIR", "MODO", "ESPERE", "PENDENTE"]
@@ -220,13 +281,19 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
 
         cv2.imshow(nome_janela, frame)
         
+        # Monitoramento em tempo real: garante que a cada 2 segundos a câmara volta a fixar-se no topo absoluto
+        if hwnd_camara and int(time.time()) % 2 == 0:
+            win32gui.SetWindowPos(hwnd_camara, win32con.HWND_TOPMOST, pos_x, pos_y, 320, 240, win32con.SWP_NOSIZE | win32con.SWP_NOMOVE)
+
         if cv2.waitKey(1) & 0xFF == ord('q'): break
         if cv2.getWindowProperty(nome_janela, cv2.WND_PROP_VISIBLE) < 1: break
 
     cap.release()
     cv2.destroyAllWindows()
 
-    # Alterado: Gravação condicionada à escolha do utilizador
+    if hwnd_interface:
+        win32gui.ShowWindow(hwnd_interface, win32con.SW_RESTORE)
+
     if salvar_metricas:
         logger.save_report()
 

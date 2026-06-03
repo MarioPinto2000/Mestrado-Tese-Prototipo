@@ -54,7 +54,8 @@ class Installer:
             'word2number': 'word2number',
             'Pillow': 'PIL' ,
             'pycaw': 'pycaw',
-            'comtypes': 'comtypes'
+            'comtypes': 'comtypes',
+            'pywin32': 'win32gui'
         }
         
         all_ok = True
