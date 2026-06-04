@@ -154,8 +154,8 @@ class AppUI:
         adicionar_item("• MODO VOZ", "Estique o indicador, médio, anelar e mindinho .")
 
         txt.insert(tk.INSERT, "\nMÃO DIREITA → AÇÕES\n\n", "seccao")
-        adicionar_item("• NAVEGAÇÃO", "Swipe em espelho com a mão direita:\n- Da direita para a esquerda → Próximo slide\n- Da esquerda para a direita → Slide Anterior")
-        adicionar_item("• FOCUS", "Mão fechada abra a mão → Zoom +\nMão Aberta feche a mão → Zoom -\nGesto OK → Reset do zoom")
+        adicionar_item("• NAVEGAÇÃO", "Swipe com a mão direita:\n- Da direita para a esquerda → Próximo slide\n- Da esquerda para a direita → Slide Anterior")
+        adicionar_item("• FOCUS", "Mão fechada abra a mão → Zoom +\nMão Aberta feche a mão → Zoom -\nGesto OK → Reset do zoom\nApenas dedo indicador esticado → Ponteiro")
         adicionar_item("• MULTIMÉDIA", "Gesto OK → Play / Pause\nIndicador e Médio esticados → Mute/Unmute\nIndicador esticado para cima controla o volume através do deslocamento horizontal.")
 
         txt.insert(tk.INSERT, "\nVOZ\n\n", "seccao")
