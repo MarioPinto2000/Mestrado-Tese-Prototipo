@@ -11,8 +11,6 @@ from gestures.gesture_controller import GestureController
 from voice.voice_commands import VoiceController 
 from audio.audio_utils import AudioController
 from metrics_logger import MetricsLogger
-
-# Importações oficiais do ecossistema Windows
 import win32com.client
 import pythoncom
 import win32gui
@@ -45,20 +43,17 @@ def draw_horizontal_volume_bar(frame, volume):
 def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
     global status_voz_hud, ultima_detecao
     
-    # 1. MINIMIZAR A INTERFACE GRÁFICA LOGO NO INÍCIO
     hwnd_interface = win32gui.FindWindow(None, "Controlo Gestual PowerPoint v1.1")
     if hwnd_interface:
         win32gui.ShowWindow(hwnd_interface, win32con.SW_MINIMIZE)
     
     hwnd_ppt_slideshow = None
-    
-    # 2. SEGURANÇA ANTIDUPLICADO: MATAR INSTÂNCIAS ANTIGAS REPETIDAS DO POWERPOINT
+
     if ppt_path:
         print("A limpar processos antigos do PowerPoint para evitar duplicações...")
         subprocess.run("taskkill /f /im powerpnt.exe", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(1) 
-    
-    # 3. ABRIR APENAS UM POWERPOINT DIRETAMENTE EM FULLSCREEN
+
     if ppt_path and os.path.exists(ppt_path):
         print(f"A iniciar PowerPoint: {ppt_path}")
         caminho_formatado = os.path.abspath(ppt_path)
@@ -96,21 +91,17 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
     screen_width, screen_height = pyautogui.size()
     frame_margin = 60 
     
-    # --- OTIMIZAÇÃO CRÍTICA PARA ELIMINAR DELAY EM CÂMARAS USB ---
+    #OTIMIZAÇÃO ELIMINAR DELAY EM CÂMARAS USB
     print(f"A configurar câmara USB de alta performance (Índice {cam_index})...")
     cap = cv2.VideoCapture(cam_index, cv2.CAP_DSHOW)
     
-    # 1. Força o uso do codec MJPEG (Hardware acelerado na câmara USB externa)
     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
     
-    # 2. Desativa o buffer interno para garantir que o Python lê APENAS a frame atual (Tempo Real Real)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     
-    # 3. Define a resolução nativa baixa de captura para poupar processamento gráfico antes do resize
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
     
-    # 4. Força uma taxa de atualização fluida
     cap.set(cv2.CAP_PROP_FPS, 30)
     # -------------------------------------------------------------
 
@@ -119,7 +110,6 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
     nome_janela = "Controle de Apresentacao v1.0"
     cv2.namedWindow(nome_janela)
     
-    # 4. CONFIGURAR A JANELA DA CÂMARA NO TOPO ABSOLUTO
     pos_x = screen_width - 320
     pos_y = 0
     cv2.moveWindow(nome_janela, pos_x, pos_y)
@@ -133,7 +123,6 @@ def main(cam_index=0, mic_index=None, ppt_path=None, salvar_metricas=True):
     while True:
         start_frame_time = time.time()
         
-        # O OpenCV agora puxa instantaneamente a última imagem gerada pela câmara USB
         ret, frame = cap.read()
         if not ret: break
         
