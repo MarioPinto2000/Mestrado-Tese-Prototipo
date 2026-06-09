@@ -1,8 +1,3 @@
-"""
-Sistema Multimodal - Módulo de Debug e Análise de Landmarks
-Função: Fornecer ferramentas para visualizar e analisar os dados dos landmarks em tempo real
-"""
-
 import cv2
 import mediapipe as mp
 import numpy as np
@@ -138,14 +133,7 @@ class HandAnalyzer:
                                  show_labels: bool = True) -> np.ndarray:
         """
         Desenha landmarks com informações adicionais
-        
-        Args:
-            image: Frame do vídeo
-            landmarks: Lista de landmarks
-            show_labels: Se deve mostrar nomes dos landmarks
-            
-        Returns:
-            np.ndarray: Imagem com informações desenhadas
+
         """
         h, w, _ = image.shape
         
@@ -235,7 +223,7 @@ def main_debug():
     Função principal para modo debug com análise de landmarks
     """
     import sys
-    sys.path.insert(0, '/home/claude')
+    sys.path.insert(0, '')
     from gestures.hand_detector import HandDetector
     
     detector = HandDetector()

@@ -74,7 +74,6 @@ class HandDetector:
         return image
 
 def main():
-    """Função principal interna para teste direto do módulo"""
     detector = HandDetector(min_detection_confidence=0.7, max_num_hands=2)
     cap = cv2.VideoCapture(0)
     
