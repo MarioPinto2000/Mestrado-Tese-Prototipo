@@ -1,17 +1,17 @@
 {
-    "total_sessoes_registadas": 19,
+    "total_sessoes_registadas": 23,
     "dados_globais_acumulados": {
-        "numero_total_de_testes": 19,
-        "tempo_acumulado_testes_segundos": 9203.38,
-        "total_frames_analisados": 114637,
+        "numero_total_de_testes": 23,
+        "tempo_acumulado_testes_segundos": 10533.81,
+        "total_frames_analisados": 150630,
         "gestos_global": {
-            "latencia_media_geral_ms": 70.01,
-            "total_comandos_executados": 706
+            "latencia_media_geral_ms": 60.89,
+            "total_comandos_executados": 863
         },
         "voz_global": {
-            "latencia_media_geral_ms": 6819.24,
-            "total_tentativas_audio": 80,
-            "total_comandos_reconhecidos": 40,
+            "latencia_media_geral_ms": 6384.92,
+            "total_tentativas_audio": 116,
+            "total_comandos_reconhecidos": 58,
             "taxa_precisao_geral_percentual": 50.0
         }
     },
@@ -338,6 +338,78 @@
                 "total_tentativas_voz": 3,
                 "total_comandos_reconhecidos": 1,
                 "taxa_precisao_voz_percentual": 33.33
+            }
+        },
+        {
+            "sessao_id": 20,
+            "data_execucao": "2026-06-14 21:48:15",
+            "informacao_geral": {
+                "duracao_da_sessao_segundos": 285.8,
+                "total_frames_processados": 7264
+            },
+            "metricas_gestos": {
+                "latencia_media_ms": 31.84,
+                "total_gestos_executados": 41
+            },
+            "metricas_voz": {
+                "latencia_media_reconhecimento_ms": 4450.19,
+                "total_tentativas_voz": 6,
+                "total_comandos_reconhecidos": 6,
+                "taxa_precisao_voz_percentual": 100.0
+            }
+        },
+        {
+            "sessao_id": 21,
+            "data_execucao": "2026-06-14 21:56:21",
+            "informacao_geral": {
+                "duracao_da_sessao_segundos": 518.27,
+                "total_frames_processados": 14491
+            },
+            "metricas_gestos": {
+                "latencia_media_ms": 31.81,
+                "total_gestos_executados": 29
+            },
+            "metricas_voz": {
+                "latencia_media_reconhecimento_ms": 6471.09,
+                "total_tentativas_voz": 17,
+                "total_comandos_reconhecidos": 3,
+                "taxa_precisao_voz_percentual": 17.65
+            }
+        },
+        {
+            "sessao_id": 22,
+            "data_execucao": "2026-06-14 22:15:41",
+            "informacao_geral": {
+                "duracao_da_sessao_segundos": 283.06,
+                "total_frames_processados": 7616
+            },
+            "metricas_gestos": {
+                "latencia_media_ms": 31.86,
+                "total_gestos_executados": 56
+            },
+            "metricas_voz": {
+                "latencia_media_reconhecimento_ms": 3826.94,
+                "total_tentativas_voz": 5,
+                "total_comandos_reconhecidos": 5,
+                "taxa_precisao_voz_percentual": 100.0
+            }
+        },
+        {
+            "sessao_id": 23,
+            "data_execucao": "2026-06-14 22:56:44",
+            "informacao_geral": {
+                "duracao_da_sessao_segundos": 243.3,
+                "total_frames_processados": 6622
+            },
+            "metricas_gestos": {
+                "latencia_media_ms": 31.86,
+                "total_gestos_executados": 31
+            },
+            "metricas_voz": {
+                "latencia_media_reconhecimento_ms": 4908.37,
+                "total_tentativas_voz": 8,
+                "total_comandos_reconhecidos": 4,
+                "taxa_precisao_voz_percentual": 50.0
             }
         }
     ]
